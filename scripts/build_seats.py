@@ -15,25 +15,23 @@ for i, m in enumerate(h[5:]):
 cols.sort()
 months = [f"{NAMES[mo-1]} {yr}" for yr, mo, _ in cols]
 
-# one row per party (country + name); a party in different groups over time keeps one row
+# one record per party and group (country + name + group). A party whose seats are split across
+# two groups in the same month keeps both records, so no seats are lost; the party table merges them again.
 parties = collections.OrderedDict()
 for r in R:
     r += [''] * (len(h) - len(r))
     country, group = r[1].strip(), r[2].strip()
     name = r[3].strip() or re.sub(r'\s*\([^()]*\)\s*$', '', r[4].strip())
-    key = (country, name)
-    p = parties.setdefault(key, dict(c=country, n=name, prev=[], s=[[None, 0] for _ in cols]))
+    if not country or not name:
+        continue
+    key = (country, name, group)
+    p = parties.setdefault(key, dict(c=country, n=name, prev=[], s=[[group, 0] for _ in cols]))
     if r[0].strip() and r[0].strip() not in p['prev']: p['prev'].append(r[0].strip())
     for j, (_, _, ci) in enumerate(cols):
         v = r[ci].strip()
         if v:
-            n = int(v)
-            cur = p['s'][j]
-            if cur[1] and cur[0] != group:   # same party in two groups in one month: keep the larger
-                if n > cur[1]: p['s'][j] = [group, n]
-            else:
-                p['s'][j] = [group, cur[1] + n]
-
+            try: p['s'][j][1] += int(float(v))
+            except ValueError: pass
 data = [dict(c=p['c'], n=p['n'], prev=p['prev'], s=[[g, n] if n else 0 for g, n in p['s']]) for p in parties.values()]
 M = json.load(open(MAP, encoding='utf-8'))
 countries = sorted({p['c'] for p in data})
