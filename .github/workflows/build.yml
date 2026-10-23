@@ -1,8 +1,8 @@
-name: Build party timelines
+name: Build EP seat projections
 
 on:
   schedule:
-    - cron: "17 * * * *"   # every hour at :17
+    - cron: "23 * * * *"   # every hour at :23
   workflow_dispatch:        # "Run workflow" button for an immediate rebuild
   push:
     branches: [main]
@@ -26,47 +26,35 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Download the party sheet
-        env:
-          SHEET_TSV_URL: ${{ secrets.SHEET_TSV_URL }}
-        run: |
-          if [ -z "$SHEET_TSV_URL" ]; then
-            echo "::error::Add the SHEET_TSV_URL repository secret (Settings → Secrets and variables → Actions)."
-            exit 1
-          fi
-          curl -fsSL --retry 3 "$SHEET_TSV_URL" -o data/latest.tsv
-          head -c 200 data/latest.tsv | grep -q "Europe Elects Entity ID" || {
-            echo "::error::The download is not the party sheet (check the link is published as TSV)."; exit 1; }
-
       - name: Download the seat projection sheets
         env:
           SEATS_PARTY_TSV_URL: ${{ secrets.SEATS_PARTY_TSV_URL }}
           SEATS_EU_TSV_URL: ${{ secrets.SEATS_EU_TSV_URL }}
         run: |
-          # Optional: if the secrets are missing, the last committed copies in data/ are used.
-          if [ -n "$SEATS_PARTY_TSV_URL" ]; then
-            curl -fsSL --retry 3 "$SEATS_PARTY_TSV_URL" -o /tmp/seats_party.tsv
-            if head -c 300 /tmp/seats_party.tsv | grep -q "EU Parliament group"; then mv /tmp/seats_party.tsv data/seats_party.tsv
-            else echo "::warning::SEATS_PARTY_TSV_URL is not the per-party seat sheet; keeping the last copy."; fi
+          if [ -z "$SEATS_PARTY_TSV_URL" ] || [ -z "$SEATS_EU_TSV_URL" ]; then
+            echo "::error::Add the SEATS_PARTY_TSV_URL and SEATS_EU_TSV_URL repository secrets (Settings → Secrets and variables → Actions)."
+            exit 1
           fi
-          if [ -n "$SEATS_EU_TSV_URL" ]; then
-            curl -fsSL --retry 3 "$SEATS_EU_TSV_URL" -o /tmp/seats_eu.tsv
-            if head -c 300 /tmp/seats_eu.tsv | grep -q "EPP"; then mv /tmp/seats_eu.tsv data/seats_eu.tsv
-            else echo "::warning::SEATS_EU_TSV_URL is not the EU-wide seat sheet; keeping the last copy."; fi
-          fi
+          curl -fsSL --retry 3 "$SEATS_PARTY_TSV_URL" -o /tmp/seats_party.tsv
+          head -c 300 /tmp/seats_party.tsv | grep -q "EU Parliament group" || {
+            echo "::error::SEATS_PARTY_TSV_URL is not the per-party seat sheet (check the link and that the sheet is shared)."; exit 1; }
+          curl -fsSL --retry 3 "$SEATS_EU_TSV_URL" -o /tmp/seats_eu.tsv
+          head -c 300 /tmp/seats_eu.tsv | grep -q "EPP" || {
+            echo "::error::SEATS_EU_TSV_URL is not the EU-wide seat sheet (check the link and that the sheet is shared)."; exit 1; }
+          mkdir -p data
+          mv /tmp/seats_party.tsv data/seats_party.tsv
+          mv /tmp/seats_eu.tsv data/seats_eu.tsv
 
-      - name: Build the pages
+      - name: Build the page
         run: |
-          python scripts/build.py data/latest.tsv site
-          python scripts/build_index.py site
-          python scripts/build_seats.py data/seats_party.tsv scripts/europe_map.json site/seats.html scripts/seats_template.html data/seats_eu.tsv
-          rm -f site/_index.json site/_index_body.html
+          mkdir -p site
+          python scripts/build_seats.py data/seats_party.tsv scripts/europe_map.json site/index.html scripts/seats_template.html data/seats_eu.tsv
 
       - name: Save a snapshot of the data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add data/latest.tsv data/seats_party.tsv data/seats_eu.tsv
+          git add data/seats_party.tsv data/seats_eu.tsv
           if ! git diff --cached --quiet; then
             git commit -m "Data snapshot $(date -u '+%Y-%m-%d %H:%M UTC')"
             git push
