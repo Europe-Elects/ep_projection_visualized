@@ -196,7 +196,7 @@ const ink = hex => { const n=parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let m = MONTHS.length-1, sel = "Germany", timer = null;
 
-if(false && ISSUES.length){
+if(ISSUES.length){
   const el = document.getElementById("issues");
   el.innerHTML = "<b>Data check.</b> Seat totals differ from the usual number in: " + ISSUES.map(([c,mo,n])=>`${esc(c)} ${esc(mo)} (${n})`).join(", ") + ". The page shows the figures as given.";
   el.hidden = false;
@@ -268,18 +268,31 @@ selEl.addEventListener("change", ()=>select(selEl.value,false));
 document.querySelector('[aria-labelledby="h-cty"]').id = "parties";
 const short = mo => mo.slice(0,3) + "<br>" + mo.slice(-2);
 function table(){
-  const rows = P.filter(p=>p.c===sel);
-  const last = p => { for(let j=MONTHS.length-1;j>=0;j--) if(p.s[j]) return [j,p.s[j]]; return [-1,null]; };
-  rows.sort((a,b)=>{ const A=last(a), B=last(b); return (B[0]-A[0]) || ((B[1]?B[1][1]:0)-(A[1]?A[1][1]:0)); });
-  let h = `<thead><tr><th class="pn">Party</th>${MONTHS.map((mo,j)=>`<th class="${j===m?"cur":""}">${short(mo)}</th>`).join("")}</tr></thead><tbody>`;
-  rows.forEach(p=>{
-    const groups = [...new Set(p.s.filter(Boolean).map(x=>x[0]))];
-    const sub = [groups.map(gname).join(" → "), ...p.prev].filter(Boolean).join(" · ");
-    h += `<tr><td class="pn">${esc(p.n)}<small>${esc(sub)}</small></td>` + p.s.map((x,j)=> x
-      ? `<td class="${j===m?"cur":""}" style="background:${col(x[0])};color:${ink(col(x[0]))}" title="${esc(p.n)} · ${esc(MONTHS[j])}: ${x[1]} (${esc(gname(x[0]))})">${x[1]}</td>`
-      : `<td class="e${j===m?" cur":""}"></td>`).join("") + `</tr>`;
+  // merge a party's records (one per group) back into one row; a month split across groups shows both colours
+  const byName = new Map();
+  P.filter(p=>p.c===sel).forEach(p=>{
+    if(!byName.has(p.n)) byName.set(p.n, {n:p.n, prev:[], cells:MONTHS.map(()=>[])});
+    const R0 = byName.get(p.n); p.prev.forEach(x=>{ if(!R0.prev.includes(x)) R0.prev.push(x); });
+    p.s.forEach((x,j)=>{ if(x) R0.cells[j].push(x); });
   });
-  h += `<tr class="tot"><td class="pn">Total</td>${MONTHS.map((_,j)=>`<td class="${j===m?"cur":""}">${rows.reduce((a,p)=>a+(p.s[j]?p.s[j][1]:0),0)}</td>`).join("")}</tr></tbody>`;
+  const rows = [...byName.values()];
+  const sum = c => c.reduce((a,x)=>a+x[1],0);
+  const last = r => { for(let j=MONTHS.length-1;j>=0;j--) if(r.cells[j].length) return [j,sum(r.cells[j])]; return [-1,0]; };
+  rows.sort((a,b)=>{ const A=last(a), B=last(b); return (B[0]-A[0]) || (B[1]-A[1]); });
+  let h = `<thead><tr><th class="pn">Party</th>${MONTHS.map((mo,j)=>`<th class="${j===m?"cur":""}">${short(mo)}</th>`).join("")}</tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const groups = [...new Set(r.cells.flat().map(x=>x[0]))];
+    const sub = [groups.map(gname).join(" → "), ...r.prev].filter(Boolean).join(" · ");
+    h += `<tr><td class="pn">${esc(r.n)}<small>${esc(sub)}</small></td>` + r.cells.map((c,j)=>{
+      if(!c.length) return `<td class="e${j===m?" cur":""}"></td>`;
+      const cs = c.slice().sort((a,b)=>b[1]-a[1]), tot = sum(cs), main = col(cs[0][0]);
+      let bg = main;
+      if(cs.length>1){ let acc=0; bg = "linear-gradient(90deg," + cs.map(x=>{ const a=acc/tot*100; acc+=x[1]; return `${col(x[0])} ${a.toFixed(0)}% ${(acc/tot*100).toFixed(0)}%`; }).join(",") + ")"; }
+      const tt = `${r.n} · ${MONTHS[j]}: ` + cs.map(x=>`${x[1]} ${gname(x[0])}`).join(" + ");
+      return `<td class="${j===m?"cur":""}" style="background:${bg};color:${ink(main)}" title="${esc(tt)}">${tot}</td>`;
+    }).join("") + `</tr>`;
+  });
+  h += `<tr class="tot"><td class="pn">Total</td>${MONTHS.map((_,j)=>`<td class="${j===m?"cur":""}">${rows.reduce((a,r)=>a+sum(r.cells[j]),0)}</td>`).join("")}</tr></tbody>`;
   document.getElementById("tbl").innerHTML = h;
   document.getElementById("h-cty").textContent = `Parties · ${sel}`;
 }
