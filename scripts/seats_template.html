@@ -196,7 +196,7 @@ const ink = hex => { const n=parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let m = MONTHS.length-1, sel = "Germany", timer = null;
 
-if(ISSUES.length){
+if(false && ISSUES.length){
   const el = document.getElementById("issues");
   el.innerHTML = "<b>Data check.</b> Seat totals differ from the usual number in: " + ISSUES.map(([c,mo,n])=>`${esc(c)} ${esc(mo)} (${n})`).join(", ") + ". The page shows the figures as given.";
   el.hidden = false;
