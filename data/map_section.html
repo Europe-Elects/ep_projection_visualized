@@ -1,0 +1,175 @@
+<style>
+.mapwrap{display:flex;flex-direction:column;gap:14px}
+.mapctl{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+.mlab{font:700 13px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:8px}
+.mseg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--rule);border-radius:2px;overflow:hidden;background:var(--surface)}
+.mseg button{font:600 14px var(--body);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:none;border:0;padding:6px 12px;cursor:pointer}
+.mseg button+button{border-left:1px solid var(--rule)}
+.mseg button[aria-pressed="true"]{background:var(--navy);color:#fff;box-shadow:inset 0 -3px 0 var(--yellow)}
+.mseg button:focus-visible,.yrbox button:focus-visible,#yr:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.yrbox{display:flex;align-items:center;gap:12px;flex:1 1 320px;min-width:0}
+.yrbox output{font:800 34px/1 var(--display);color:var(--navy);font-variant-numeric:tabular-nums;min-width:3.2ch}
+#yr{flex:1;min-width:120px;accent-color:var(--navy)}
+.yrbox button{font:700 13px var(--body);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule);background:var(--surface);color:var(--navy);padding:6px 12px;border-radius:2px;cursor:pointer}
+.mapbox{position:relative;background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--navy);border-radius:2px;overflow:hidden}
+#map{display:block;width:100%;height:auto}
+#map .bg{fill:var(--land);stroke:var(--surface);stroke-width:.6}
+#map .cty{fill:var(--land-in);stroke:var(--surface);stroke-width:.7;cursor:pointer}
+#map a:hover .cty,#map a:focus .cty{stroke:var(--fg);stroke-width:1.4}
+#map a:focus{outline:none}
+#map a:hover .cty{fill:var(--land-hover)}
+#map .gridbg{fill:var(--surface);fill-opacity:.85;stroke:var(--rule);stroke-width:.6}
+#map a:hover .gridbg,#map a:focus .gridbg{stroke:var(--navy);stroke-width:1.2}
+#map .leader{stroke:var(--muted);stroke-width:.6}
+#map .anchor{fill:var(--muted)}
+#map .dots circle{cursor:pointer}
+.mlegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--muted)}
+.mlegend span{display:inline-flex;align-items:center;gap:6px}
+.mlegend i{width:14px;height:10px;border-radius:2px;display:inline-block}
+#mtip{position:fixed;z-index:20;max-width:300px;background:var(--navy);color:#fff;border-top:3px solid var(--yellow);padding:10px 12px;border-radius:2px;font-size:14px;line-height:1.45;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+#mtip b{text-transform:uppercase;letter-spacing:.02em}
+#mtip .row{display:flex;align-items:center;gap:6px}
+#mtip i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.mchk{display:inline-flex;align-items:center;gap:8px;font:600 14px var(--body);color:var(--muted);cursor:pointer}
+.mchk input{accent-color:var(--navy);width:16px;height:16px}
+.mnote{color:var(--muted);font-size:14px;margin:0}
+@media (prefers-reduced-motion:reduce){#map .cty{transition:none}}
+</style>
+<section class="mapwrap" aria-label="Map of affiliations by country">
+  <div class="mapctl">
+    <div><span class="mlab">Colour by</span><span class="mseg" id="mdim"></span></div>
+    <div class="yrbox">
+      <span class="mlab">Year</span>
+      <output id="yrout" for="yr"></output>
+      <input id="yr" type="range" step="1" aria-label="Year">
+      <button type="button" id="play">Play</button>
+    </div>
+    <label class="mchk"><input type="checkbox" id="mnone" checked> Show parties without an affiliation</label>
+  </div>
+  <div class="mapbox"><svg id="map" viewBox="0 0 __W__ __H__" role="img" aria-label="Map of Europe; select a country to open its timeline">__PATHS__</svg></div>
+  <div class="mlegend" id="mlegend"></div>
+  <p class="mnote">Each dot is one party active in the selected year, coloured by its affiliation and grouped by colour. Grey dots are parties with no recorded affiliation or no data yet; untick the box to hide them. A party holding two affiliations at once shows the first in the legend order. Where grids would overlap they are moved aside, with a thin line to the country. Hover for the full count, click to open the country's timeline.</p>
+</section>
+<div id="mtip" hidden></div>
+<script>
+(function(){
+const C = __COUNTRIES__;
+const DIMS = __DIMS__;
+const ANCH = __ANCHORS__;
+const W = __W__, H = __H__;
+const NS = "http://www.w3.org/2000/svg";
+const byName = new Map(C.map(c=>[c.country,c]));
+const now = new Date().getFullYear();
+let dim = DIMS[0].id, year = now, timer = null, withNone = true;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const D = () => DIMS.find(d=>d.id===dim);
+const NONE = "#b4b8c0";
+const col = k => k==null ? NONE : (D().keys[k]||["#8a7f99"])[0];
+const rank = k => { if(k==null) return 1e6; const i = Object.keys(D().keys).indexOf(k); return i<0 ? 999 : i; };
+const alive = (c,p,y) => { const [s,e] = c.life[p]; return s!=null && s<=y && (e==null || e>=y); };
+
+// one dot per party: its affiliation in the selected year (best-ranked if it holds several)
+function parties(c){
+  const best = new Map();
+  for(const [k,f,t,p] of (c.tl[dim]||[])) if(f<=year && (t==null || t>=year)){
+    if(!best.has(p) || rank(k)<rank(best.get(p))) best.set(p,k);
+  }
+  const out = [];
+  for(let p=0;p<c.life.length;p++) if(alive(c,p,year)) out.push(best.has(p) ? best.get(p) : null);
+  return out.sort((a,b)=>rank(a)-rank(b));
+}
+
+// fixed grid per country, sized for its largest number of parties in any year
+const S = 4.6, R = 1.75, PAD = 3;
+const grids = [];
+for(const c of C){
+  const a = ANCH[c.country]; if(!a) continue;
+  let N = 0; for(let y=1945;y<=now;y++){ let n=0; for(let p=0;p<c.life.length;p++) if(alive(c,p,y)) n++; if(n>N) N=n; }
+  if(!N) continue;
+  const cols = Math.max(1, Math.ceil(Math.sqrt(N*1.3))), rows = Math.ceil(N/cols);
+  grids.push({c, N, cols, rows, w:cols*S, h:rows*S, ax:a[0], ay:a[1], x:a[0], y:a[1]});
+}
+// push overlapping grids apart, with a gentle pull back to their anchors
+for(let it=0; it<400; it++){
+  for(let i=0;i<grids.length;i++) for(let j=i+1;j<grids.length;j++){
+    const A=grids[i], B=grids[j];
+    const ox = (A.w+B.w)/2 + PAD - Math.abs(A.x-B.x), oy = (A.h+B.h)/2 + PAD - Math.abs(A.y-B.y);
+    if(ox>0 && oy>0){
+      if(ox<oy){ const d=(A.x<B.x?-1:1)*ox/2; A.x+=d; B.x-=d; } else { const d=(A.y<B.y?-1:1)*oy/2; A.y+=d; B.y-=d; }
+    }
+  }
+  for(const g of grids){ g.x += (g.ax-g.x)*0.03; g.y += (g.ay-g.y)*0.03;
+    g.x = Math.min(W-g.w/2-2, Math.max(g.w/2+2, g.x)); g.y = Math.min(H-g.h/2-2, Math.max(g.h/2+2, g.y)); }
+}
+const svg = document.getElementById("map");
+const layer = document.createElementNS(NS,"g"); layer.setAttribute("class","dots"); svg.appendChild(layer);
+for(const g of grids){
+  const a = document.createElementNS(NS,"a"); a.setAttribute("href", g.c.file); a.setAttribute("aria-label", g.c.country);
+  if(Math.hypot(g.x-g.ax, g.y-g.ay) > 6){
+    const l = document.createElementNS(NS,"line");
+    l.setAttribute("x1",g.ax); l.setAttribute("y1",g.ay); l.setAttribute("x2",g.x); l.setAttribute("y2",g.y); l.setAttribute("class","leader");
+    layer.appendChild(l);
+    const m = document.createElementNS(NS,"circle"); m.setAttribute("cx",g.ax); m.setAttribute("cy",g.ay); m.setAttribute("r",1.6); m.setAttribute("class","anchor"); layer.appendChild(m);
+  }
+  const bg = document.createElementNS(NS,"rect");
+  bg.setAttribute("x", g.x-g.w/2-1.5); bg.setAttribute("y", g.y-g.h/2-1.5); bg.setAttribute("width", g.w+3); bg.setAttribute("height", g.h+3);
+  bg.setAttribute("rx", 2); bg.setAttribute("class","gridbg"); bg.dataset.c = g.c.country; a.appendChild(bg);
+  g.dots = [];
+  for(let i=0;i<g.N;i++){
+    const d = document.createElementNS(NS,"circle");
+    d.setAttribute("cx", (g.x - g.w/2 + S/2 + (i%g.cols)*S).toFixed(1));
+    d.setAttribute("cy", (g.y - g.h/2 + S/2 + Math.floor(i/g.cols)*S).toFixed(1));
+    d.setAttribute("r", R); d.dataset.c = g.c.country; a.appendChild(d); g.dots.push(d);
+  }
+  layer.appendChild(a);
+}
+
+function paint(){
+  const used = new Set();
+  for(const g of grids){
+    let list = parties(g.c); if(!withNone) list = list.filter(k=>k!=null);
+    list.forEach(k=>{ if(k!=null) used.add(k); });
+    g.dots.forEach((d,i)=>{ if(i<list.length){ d.setAttribute("fill", col(list[i])); d.removeAttribute("visibility"); } else d.setAttribute("visibility","hidden"); });
+  }
+  const keys = [...used].sort((a,b)=>rank(a)-rank(b));
+  document.getElementById("mlegend").innerHTML = `<span><b>One dot = one party</b></span>` + keys.map(k=>`<span><i style="background:${col(k)}"></i>${esc(k)}</span>`).join("") +
+    (withNone ? `<span><i style="background:${NONE}"></i>No ${esc(D().label)} affiliation / no data</span>` : "");
+  document.getElementById("yrout").value = year;
+}
+const seg = document.getElementById("mdim");
+seg.innerHTML = DIMS.filter(d=>C.some(c=>(c.tl[d.id]||[]).length)).map((d,i)=>`<button type="button" data-v="${d.id}" aria-pressed="${i===0}" title="${esc(d.full)}">${esc(d.label)}</button>`).join("");
+seg.addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return;
+  seg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); dim=b.dataset.v; paint();});
+const chk = document.getElementById("mnone"); chk.checked = true;
+chk.addEventListener("change",e=>{ withNone = e.target.checked; paint(); });
+const yr = document.getElementById("yr");
+yr.min = 1945; yr.max = now; yr.value = now;
+yr.addEventListener("input",()=>{year=+yr.value; paint();});
+const play = document.getElementById("play");
+function stop(){ clearInterval(timer); timer=null; play.textContent="Play"; }
+play.addEventListener("click",()=>{
+  if(timer){ stop(); return; }
+  if(year>=now) year=+yr.min;
+  play.textContent="Pause";
+  timer=setInterval(()=>{ year++; yr.value=year; paint(); if(year>=now) stop(); }, 220);
+});
+const tip = document.getElementById("mtip");
+function show(name,x,y){
+  const c = byName.get(name), list = parties(c), m = new Map();
+  list.forEach(k=>m.set(k,(m.get(k)||0)+1));
+  const rows = [...m.entries()].sort((a,b)=>rank(a[0])-rank(b[0]));
+  tip.innerHTML = `<b>${esc(name)}</b> · ${year} · ${list.length} ${list.length===1?"party":"parties"}<br>` +
+    rows.map(([k,n])=>`<span class="row"><i style="background:${col(k)}"></i>${k==null?`No ${esc(D().label)} affiliation / no data`:esc(k)}: ${n}</span>`).join("") +
+    `<span style="opacity:.75">Open the timeline →</span>`;
+  tip.hidden=false;
+  const w=tip.offsetWidth,h=tip.offsetHeight; let L=x+14,T=y+14;
+  if(L+w>innerWidth-8) L=x-w-14; if(T+h>innerHeight-8) T=y-h-14;
+  tip.style.left=Math.max(8,L)+"px"; tip.style.top=Math.max(8,T)+"px";
+}
+svg.addEventListener("mousemove",e=>{const a=e.target.closest("[data-c]"); if(!a){tip.hidden=true;return;} show(a.dataset.c,e.clientX,e.clientY);});
+svg.addEventListener("mouseleave",()=>tip.hidden=true);
+svg.addEventListener("focusin",e=>{const a=e.target.closest("a"); if(!a) return; const el=a.querySelector("[data-c]"); if(!el) return; const r=a.getBoundingClientRect(); show(el.dataset.c,r.left+r.width/2,r.bottom);});
+svg.addEventListener("focusout",()=>tip.hidden=true);
+paint();
+})();
+</script>

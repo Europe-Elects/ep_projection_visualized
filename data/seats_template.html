@@ -1,0 +1,428 @@
+<title>EP Seat Projections</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Advent+Pro:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one column — month control, seat-dot map, party table for one country */
+:root{
+  --bg:#f8f8f6; --surface:#ffffff; --fg:#14213d; --muted:#5b616e; --rule:#e3e3de; --grid:#efefea;
+  --navy:#003399; --yellow:#ffcc00; --land:#ededea; --land-in:#dfe1e6; --land-hover:#cfd3db;
+  --display:"Advent Pro","Arial Narrow",system-ui,sans-serif; --body:"Advent Pro","Arial Narrow",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;font-weight:500;line-height:1.4}
+.wrap{max-width:1240px;margin:0 auto;padding-block:22px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+h1{font:800 clamp(30px,4.4vw,46px)/1 var(--display);margin:0;text-transform:uppercase;letter-spacing:.02em;color:var(--navy);text-wrap:balance}
+h1::after{content:"";display:block;width:56px;height:4px;background:var(--yellow);margin-top:10px}
+h2{font:700 15px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0}
+.lede{color:var(--muted);margin:0}
+.note{margin:0;padding:10px 14px;background:#fff8d6;border-left:4px solid var(--yellow);font-size:15px;border-radius:2px}
+.note b{text-transform:uppercase;letter-spacing:.04em;color:var(--navy)}
+.ctl{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;border-bottom:1px solid var(--rule)}
+.ctl output{font:800 30px/1 var(--display);color:var(--navy);min-width:7ch;font-variant-numeric:tabular-nums}
+#mo{flex:1 1 240px;min-width:140px;accent-color:var(--navy)}
+button{font:700 13px var(--body);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule);background:var(--surface);color:var(--navy);padding:6px 12px;border-radius:2px;cursor:pointer}
+button:focus-visible,#mo:focus-visible,select:focus-visible,#map a:focus{outline:2px solid var(--navy);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--navy);border-radius:2px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.hemi{position:relative;display:flex;height:34px;border-radius:2px;overflow:hidden}
+.hemi div{height:100%;display:flex;align-items:center;justify-content:center;font:700 13px var(--body);white-space:nowrap;overflow:hidden;min-width:0}
+.maj{position:absolute;top:-6px;bottom:-6px;left:calc(361/720*100%);border-left:2px dashed var(--fg)}
+.hemiwrap{position:relative;padding-top:18px}
+.majlab{position:absolute;top:0;left:calc(361/720*100%);transform:translateX(-50%);font-size:12px;color:var(--muted);white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:10px;border-radius:2px;display:inline-block}
+.legend b{color:var(--fg);font-variant-numeric:tabular-nums}
+#trend{display:block;width:100%;height:auto}
+#trend text{font:600 12px var(--body);fill:var(--muted)}
+.mapbox{position:relative;overflow:hidden}
+#map{display:block;width:100%;height:auto}
+#map .bg{fill:var(--land);stroke:var(--surface);stroke-width:.6}
+#map .cty{fill:var(--land-in);stroke:var(--surface);stroke-width:.7;cursor:pointer}
+#map .cty{transition:fill .25s}
+#map .cty.sel{stroke:var(--navy);stroke-width:1.8}
+@media (prefers-reduced-motion:reduce){#map .cty{transition:none}}
+#map .gridbg{fill:var(--surface);fill-opacity:.88;stroke:var(--rule);stroke-width:.6;cursor:pointer}
+#map .gridbg.sel{stroke:var(--navy);stroke-width:1.6}
+#map .leader{stroke:var(--muted);stroke-width:.6}
+#map .anchor{fill:var(--muted)}
+#map circle.seat{cursor:pointer}
+.row2{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+select{font:600 16px var(--body);padding:6px 10px;border:1px solid var(--rule);border-bottom:3px solid var(--navy);border-radius:2px;background:var(--surface);color:var(--fg)}
+.tbl{overflow-x:auto}
+table{border-collapse:separate;border-spacing:2px;font-variant-numeric:tabular-nums;min-width:100%}
+th{font:700 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:2px 0;text-align:center;white-space:nowrap}
+th.pn{text-align:left;min-width:220px;max-width:320px}
+td{width:28px;height:28px;text-align:center;font:700 13px var(--body);border-radius:2px}
+td.pn{text-align:left;font:600 14px var(--body);padding-right:10px;width:auto;white-space:normal;line-height:1.2}
+td.pn small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+td.e{background:var(--grid)}
+th.cur,td.cur{box-shadow:inset 0 0 0 2px var(--navy)}
+tr.tot td{font-weight:800;color:var(--fg);background:none}
+#tip{position:fixed;z-index:20;max-width:320px;background:var(--navy);color:#fff;border-top:3px solid var(--yellow);padding:10px 12px;border-radius:2px;font-size:14px;line-height:1.45;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+#tip b{text-transform:uppercase;letter-spacing:.02em}
+#tip i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:6px}
+.foot{color:var(--muted);font-size:14px;margin:0}
+.sub{margin:0;color:var(--muted);font-size:14px}
+.sm{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.tile{border:1px solid var(--rule);border-radius:2px;padding:8px 8px 4px;cursor:pointer;background:var(--surface);min-width:0;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;gap:2px}
+.tile:hover,.tile:focus-visible{border-color:var(--navy)}
+.tile.sel{border-color:var(--navy);box-shadow:inset 0 3px 0 var(--navy)}
+.tile .tn{font:700 15px var(--display);text-transform:uppercase;letter-spacing:.02em;display:flex;justify-content:space-between;gap:6px}
+.tile .tn span{color:var(--muted);font-weight:600;font-size:13px}
+.tile svg{display:block;width:100%;height:auto}
+.tile text{font:600 10px var(--body);fill:var(--muted)}
+.since{display:inline-flex;align-items:center;gap:8px;font:600 15px var(--body);color:var(--muted);flex-wrap:wrap}
+.since b{color:var(--navy)}
+.chg{display:flex;flex-direction:column;gap:3px}
+.crow{display:grid;grid-template-columns:130px 1fr 1fr 230px;align-items:center;gap:0;min-height:24px;cursor:pointer;border-radius:2px}
+.crow:hover{background:var(--grid)}
+.crow .cn{font:700 14px var(--body);padding-left:4px}
+.crow .neg{display:flex;justify-content:flex-end;gap:1px;padding-right:3px;border-right:2px solid var(--fg);min-height:20px;align-items:center;flex-wrap:wrap}
+.crow .pos{display:flex;justify-content:flex-start;gap:1px;padding-left:3px;min-height:20px;align-items:center;flex-wrap:wrap}
+.crow i{display:inline-block;width:9px;height:16px;border-radius:1px}
+.crow .sum{font:600 13px var(--body);color:var(--muted);padding-left:8px;line-height:1.2}
+.crow.flat .sum{font-style:italic}
+.chgaxis{display:grid;grid-template-columns:130px 1fr 1fr 230px;font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chgaxis span:nth-child(2){text-align:right;padding-right:6px}.chgaxis span:nth-child(3){padding-left:6px}
+@media (max-width:640px){.crow,.chgaxis{grid-template-columns:90px 1fr 1fr}.crow .sum,.chgaxis span:nth-child(4){display:none}}
+.latest{display:flex;flex-direction:column;gap:10px}
+.lhead{background:#1b2a4a;color:#fff;padding:12px 16px;border-radius:2px;border-bottom:3px solid var(--yellow)}
+.lhead h2{color:#fff}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card h3{margin:0;font:700 15px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--fg)}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar{display:grid;grid-template-columns:minmax(120px,190px) 1fr 44px;align-items:center;gap:12px;font:700 14px var(--body)}
+.bar .lab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .trk{position:relative;height:16px;background:var(--grid);border-radius:8px;overflow:hidden}
+.bar .fill{position:absolute;top:0;bottom:0;left:0;border-radius:8px;transition:width .3s,left .3s}
+.bar .mid{position:absolute;top:-2px;bottom:-2px;left:50%;border-left:1.5px solid var(--muted)}
+.bar .val{text-align:right;font-variant-numeric:tabular-nums;font-size:14px}
+@media (prefers-reduced-motion:reduce){.bar .fill{transition:none}}
+.cfilter{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
+.cfilter button{font:700 13px var(--body);letter-spacing:0;text-transform:none;color:var(--fg);padding:6px 9px}
+.cfilter button[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.brk{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:16px}
+.grp{display:flex;flex-direction:column;gap:3px}
+.grp .gn{font:700 16px var(--display);color:var(--fg)}
+.grp .line{display:flex;align-items:center;gap:8px}
+.grp .segs{display:flex;height:30px;gap:1px;min-width:0}
+.grp .seg{min-width:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;font:600 12px var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;cursor:default}
+.grp .seg span{overflow:hidden;text-overflow:ellipsis}
+.grp .tot{font:700 13px var(--body);color:var(--fg);font-variant-numeric:tabular-nums}
+.brk .empty{color:var(--muted);margin:0}
+.mini{display:inline-flex;align-items:center;gap:4px;margin-left:auto;font:700 14px var(--body);letter-spacing:.04em;text-transform:none}
+.mini button{padding:3px 8px;font-size:12px;min-width:30px}
+.mini .mm{min-width:6.5ch;text-align:center;font-variant-numeric:tabular-nums}
+.lhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lhead .mini button{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}
+.lhead .mini .mm{color:var(--yellow)}
+.panel .mini .mm{color:var(--navy)}
+.hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+</style>
+
+<div class="wrap">
+  <p class="note" id="issues" hidden></p>
+
+  <div class="ctl">
+    <h2>Month</h2>
+    <output id="moout" for="mo"></output>
+    <input id="mo" type="range" min="0" step="1" aria-label="Month">
+    <button type="button" id="play">Play</button>
+  </div>
+
+  
+
+  
+
+  <section class="latest" aria-labelledby="h-latest">
+    <div class="lhead"><h2 id="h-latest">Latest · <span id="lmonth"></span></h2></div>
+    <p class="sub">Projected seats per European Parliament group, EU-wide. Hover a bar for the figures.</p>
+    <div class="cards">
+      <div class="card"><h3>Projected seats by European Parliament group</h3><div class="bars" id="bseats"></div></div>
+      <div class="card"><h3>Change since the 2024 European Parliament election</h3><div class="bars" id="bchg"></div></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-map">
+    <h2 id="h-map">By country · one dot = one seat · shading = largest group</h2>
+    <div class="mapbox"><svg id="map" viewBox="0 0 __W__ __H__" role="img" aria-label="Map of the EU member states with one dot per projected seat">__PATHS__</svg></div>
+    <div class="legend" id="glegend"></div>
+  </section>
+
+  <section class="latest" aria-labelledby="h-brk">
+    <div class="lhead"><h2 id="h-brk">Latest breakdown: national party-level projection · <span id="bmonth"></span></h2></div>
+    <div class="cfilter" id="cfilter" role="group" aria-label="Filter by country"></div>
+    <div class="brk" id="brk"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-sm">
+    <h2 id="h-sm">Each country over time</h2>
+    <p class="sub">Seats by group, July 2024 to September 2026, stacked from the Left at the bottom to the right at the top, with non-attached and unassigned seats in the middle. The dashed line marks the month on the slider. Click a country to see its parties.</p>
+    <div class="sm" id="sm"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-chg">
+    <div class="row2"><h2 id="h-chg">Change per country</h2>
+      <label class="since">Compare <select id="base" aria-label="Compare from month"></select> with <b id="cmpto"></b></label></div>
+    <p class="sub">Gains to the right of the line, losses to the left, one block per seat. Countries with the most movement come first.</p>
+    <div class="chg" id="chg"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-cty">
+    <div class="row2"><h2 id="h-cty">Parties</h2><label><span class="sr" hidden>Country</span><select id="cty" aria-label="Country"></select></label></div>
+    <div class="tbl"><table id="tbl"></table></div>
+  </section>
+
+  <p class="foot">Each cell is a party's projected seats in that month, coloured by the group it is assigned to; a change of colour is a change of group. "Not yet assigned" covers new parties not attributed to a group. Projections, not results.</p>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+(function(){
+const MONTHS = __MONTHS__, P = __DATA__, ANCH = __ANCHORS__, ISSUES = __ISSUES__, W = __W__, H = __H__;
+const NS = "http://www.w3.org/2000/svg";
+// political groups, left to right
+const G = [
+  ["LEFT","The Left","#990000"],["G/EFA","Greens/EFA","#009900"],["S&D","Socialists & Democrats","#FF0000"],
+  ["RE","Renew Europe","#FFD700"],["EPP","European People's Party","#3399FF"],["ECR","European Conservatives and Reformists","#0000FF"],
+  ["PfE","Patriots for Europe","#000000"],["ESN","Europe of Sovereign Nations","#70463A"],["NI","Non-attached","#8a7f99"],
+  ["unaffiliated","Not yet assigned","#b4b8c0"]];
+const GI = Object.fromEntries(G.map((g,i)=>[g[0],i]));
+const col = g => (G[GI[g]]||[0,0,"#b4b8c0"])[2];
+const gname = g => (G[GI[g]]||[g,g])[1];
+const ink = hex => { const n=parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b=n&255; return (0.299*r+0.587*g+0.114*b) > 150 ? "#14213d" : "#ffffff"; };
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let m = MONTHS.length-1, sel = "Germany", timer = null;
+
+if(ISSUES.length){
+  const el = document.getElementById("issues");
+  el.innerHTML = "<b>Data check.</b> Seat totals differ from the usual number in: " + ISSUES.map(([c,mo,n])=>`${esc(c)} ${esc(mo)} (${n})`).join(", ") + ". The page shows the figures as given.";
+  el.hidden = false;
+}
+const totals = j => { const t = G.map(()=>0); P.forEach(p=>{ const x=p.s[j]; if(x) t[GI[x[0]]] += x[1]; }); return t; };
+const ALL = MONTHS.map((_,j)=>totals(j));
+
+// map: one dot per seat, grid per country
+const countries = [...new Set(P.map(p=>p.c))].sort();
+const S=5.2, Rd=2.05, PAD=3;
+const grids = countries.map(c=>{
+  const N = Math.max(...MONTHS.map((_,j)=>P.filter(p=>p.c===c).reduce((a,p)=>a+(p.s[j]?p.s[j][1]:0),0)));
+  const cols = Math.max(1, Math.ceil(Math.sqrt(N*1.3))), rows = Math.ceil(N/cols), a = ANCH[c];
+  return {c, N, cols, rows, w:cols*S, h:rows*S, ax:a[0], ay:a[1], x:a[0], y:a[1]};
+});
+for(let it=0; it<400; it++){
+  for(let i=0;i<grids.length;i++) for(let j=i+1;j<grids.length;j++){
+    const A=grids[i], B2=grids[j], ox=(A.w+B2.w)/2+PAD-Math.abs(A.x-B2.x), oy=(A.h+B2.h)/2+PAD-Math.abs(A.y-B2.y);
+    if(ox>0&&oy>0){ if(ox<oy){ const d=(A.x<B2.x?-1:1)*ox/2; A.x+=d; B2.x-=d; } else { const d=(A.y<B2.y?-1:1)*oy/2; A.y+=d; B2.y-=d; } }
+  }
+  for(const g of grids){ g.x+=(g.ax-g.x)*0.03; g.y+=(g.ay-g.y)*0.03; g.x=Math.min(W-g.w/2-2,Math.max(g.w/2+2,g.x)); g.y=Math.min(H-g.h/2-2,Math.max(g.h/2+2,g.y)); }
+}
+const svg = document.getElementById("map"), layer = document.createElementNS(NS,"g"); svg.appendChild(layer);
+for(const g of grids){
+  if(Math.hypot(g.x-g.ax,g.y-g.ay) > 6){
+    layer.insertAdjacentHTML("beforeend", `<line class="leader" x1="${g.ax}" y1="${g.ay}" x2="${g.x}" y2="${g.y}"/><circle class="anchor" cx="${g.ax}" cy="${g.ay}" r="1.6"/>`);
+  }
+  const a = document.createElementNS(NS,"a"); a.setAttribute("href","#parties"); a.setAttribute("aria-label",g.c); a.dataset.c = g.c;
+  let inner = `<rect class="gridbg" data-c="${esc(g.c)}" x="${g.x-g.w/2-1.5}" y="${g.y-g.h/2-1.5}" width="${g.w+3}" height="${g.h+3}" rx="2"/>`;
+  for(let i=0;i<g.N;i++) inner += `<circle class="seat" data-c="${esc(g.c)}" cx="${(g.x-g.w/2+S/2+(i%g.cols)*S).toFixed(1)}" cy="${(g.y-g.h/2+S/2+Math.floor(i/g.cols)*S).toFixed(1)}" r="${Rd}"/>`;
+  a.innerHTML = inner; layer.appendChild(a); g.dots = [...a.querySelectorAll("circle.seat")]; g.bg = a.querySelector("rect");
+}
+// country shading: the group with the most seats, as a light tint so the dots stay readable
+const tint = c => `color-mix(in srgb, ${c} 45%, #ffffff)`;
+const defs = document.createElementNS(NS,"defs"); svg.prepend(defs);
+const pats = new Map();
+function tiePat(keys){
+  const id = "tie-" + keys.map(k=>k.replace(/[^a-z]/gi,"")).join("-");
+  if(!pats.has(id)){ const w=4, n=keys.length;
+    defs.insertAdjacentHTML("beforeend", `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${w*n}" height="${w*n}" patternTransform="rotate(45)">${keys.map((k,i)=>`<rect x="${i*w}" y="0" width="${w}" height="${w*n}" fill="${tint(col(k))}"/>`).join("")}</pattern>`);
+    pats.set(id,1); }
+  return id;
+}
+function mapPaint(){
+  for(const g of grids){
+    const list = [];
+    P.forEach(p=>{ if(p.c===g.c && p.s[m]) for(let k=0;k<p.s[m][1];k++) list.push(p.s[m][0]); });
+    list.sort((a,b)=>GI[a]-GI[b]);
+    g.dots.forEach((d,i)=>{ if(i<list.length){ d.setAttribute("fill",col(list[i])); d.removeAttribute("visibility"); } else d.setAttribute("visibility","hidden"); });
+    g.bg.classList.toggle("sel", g.c===sel);
+  }
+  svg.querySelectorAll("path.cty").forEach(p=>{
+    p.classList.toggle("sel", p.dataset.c===sel);
+    const t = G.map(()=>0); P.forEach(q=>{ if(q.c===p.dataset.c && q.s[m]) t[GI[q.s[m][0]]] += q.s[m][1]; });
+    const top = Math.max(...t), lead = G.filter((g,i)=>top && t[i]===top).map(g=>g[0]).slice(0,3);
+    p.style.fill = !lead.length ? "" : lead.length===1 ? tint(col(lead[0])) : `url(#${tiePat(lead)})`;
+  });
+}
+svg.addEventListener("click", e=>{ const el=e.target.closest("[data-c]"); if(!el) return; e.preventDefault(); select(el.dataset.c, true); });
+svg.addEventListener("mousemove", e=>{ const el=e.target.closest("[data-c]"); if(!el){ tip.hidden=true; return; }
+  const c=el.dataset.c, t=G.map(()=>0); P.forEach(p=>{ if(p.c===c && p.s[m]) t[GI[p.s[m][0]]]+=p.s[m][1]; });
+  showTip(`<b>${esc(c)}</b> · ${esc(MONTHS[m])} · ${t.reduce((a,b)=>a+b,0)} seats<br>` + G.map((g,i)=>t[i]?`<i style="background:${g[2]}"></i>${esc(g[1])}: ${t[i]}<br>`:"").join("") + `<span style="opacity:.75">Click to show its parties</span>`, e.clientX, e.clientY); });
+svg.addEventListener("mouseleave", ()=>tip.hidden=true);
+
+// party table for the selected country
+const selEl = document.getElementById("cty");
+selEl.innerHTML = countries.map(c=>`<option${c===sel?" selected":""}>${esc(c)}</option>`).join("");
+selEl.addEventListener("change", ()=>select(selEl.value,false));
+document.querySelector('[aria-labelledby="h-cty"]').id = "parties";
+const short = mo => mo.slice(0,3) + "<br>" + mo.slice(-2);
+function table(){
+  const rows = P.filter(p=>p.c===sel);
+  const last = p => { for(let j=MONTHS.length-1;j>=0;j--) if(p.s[j]) return [j,p.s[j]]; return [-1,null]; };
+  rows.sort((a,b)=>{ const A=last(a), B=last(b); return (B[0]-A[0]) || ((B[1]?B[1][1]:0)-(A[1]?A[1][1]:0)); });
+  let h = `<thead><tr><th class="pn">Party</th>${MONTHS.map((mo,j)=>`<th class="${j===m?"cur":""}">${short(mo)}</th>`).join("")}</tr></thead><tbody>`;
+  rows.forEach(p=>{
+    const groups = [...new Set(p.s.filter(Boolean).map(x=>x[0]))];
+    const sub = [groups.map(gname).join(" → "), ...p.prev].filter(Boolean).join(" · ");
+    h += `<tr><td class="pn">${esc(p.n)}<small>${esc(sub)}</small></td>` + p.s.map((x,j)=> x
+      ? `<td class="${j===m?"cur":""}" style="background:${col(x[0])};color:${ink(col(x[0]))}" title="${esc(p.n)} · ${esc(MONTHS[j])}: ${x[1]} (${esc(gname(x[0]))})">${x[1]}</td>`
+      : `<td class="e${j===m?" cur":""}"></td>`).join("") + `</tr>`;
+  });
+  h += `<tr class="tot"><td class="pn">Total</td>${MONTHS.map((_,j)=>`<td class="${j===m?"cur":""}">${rows.reduce((a,p)=>a+(p.s[j]?p.s[j][1]:0),0)}</td>`).join("")}</tr></tbody>`;
+  document.getElementById("tbl").innerHTML = h;
+  document.getElementById("h-cty").textContent = `Parties · ${sel}`;
+}
+function select(c, scroll){ sel = c; selEl.value = c; table(); mapPaint(); smallMultiples(); if(scroll) document.getElementById("parties").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"}); }
+
+// month control
+const mo = document.getElementById("mo"), out = document.getElementById("moout"), play = document.getElementById("play");
+mo.max = MONTHS.length-1; mo.value = m;
+
+// ---- option 2: small multiples, one stacked chart per country ----
+const SW=200, SH=84;
+// stacking order for these charts: non-attached and unassigned sit in the middle, between RE and EPP
+const SMO = ["LEFT","G/EFA","S&D","RE","NI","unaffiliated","EPP","ECR","PfE","ESN"].map(k=>GI[k]);
+const tiles = countries.map(c=>{
+  const tot = MONTHS.map((_,j)=>{ const t=G.map(()=>0); P.forEach(p=>{ if(p.c===c && p.s[j]) t[GI[p.s[j][0]]]+=p.s[j][1]; }); return t; });
+  return {c, tot, max: Math.max(...tot.map(t=>t.reduce((a,b)=>a+b,0)))};
+}).sort((a,b)=>b.max-a.max || a.c.localeCompare(b.c));
+const smEl = document.getElementById("sm");
+function smallMultiples(){
+  const X = j => SW*j/(MONTHS.length-1);
+  smEl.innerHTML = tiles.map(T=>{
+    const Y = v => SH - SH*v/T.max;
+    let base = MONTHS.map(()=>0), paths = "";
+    SMO.forEach(i=>{
+      const g = G[i];
+      if(!T.tot.some(t=>t[i])) return;
+      const top = base.map((b,j)=>b+T.tot[j][i]);
+      const pts = top.map((v,j)=>`${X(j).toFixed(1)},${Y(v).toFixed(1)}`).concat(base.map((v,j)=>`${X(j).toFixed(1)},${Y(v).toFixed(1)}`).reverse());
+      paths += `<polygon points="${pts.join(" ")}" fill="${g[2]}"/>`;
+      base = top;
+    });
+    const now = T.tot[m].reduce((a,b)=>a+b,0);
+    return `<button type="button" class="tile${T.c===sel?" sel":""}" data-c="${esc(T.c)}"><span class="tn">${esc(T.c)}<span>${now} seats</span></span>
+      <svg viewBox="0 -2 ${SW} ${SH+14}" aria-hidden="true">${paths}
+      <line x1="${X(m)}" x2="${X(m)}" y1="0" y2="${SH}" stroke="var(--surface)" stroke-width="2.5"/><line x1="${X(m)}" x2="${X(m)}" y1="0" y2="${SH}" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3 2"/>
+      <text x="0" y="${SH+11}">Jul 24</text><text x="${SW}" y="${SH+11}" text-anchor="end">Sep 26</text></svg></button>`;
+  }).join("");
+}
+smEl.addEventListener("click", e=>{ const b=e.target.closest(".tile"); if(b) select(b.dataset.c, true); });
+smEl.addEventListener("mousemove", e=>{ const b=e.target.closest(".tile"); if(!b){ tip.hidden=true; return; }
+  const svgEl=b.querySelector("svg"), r=svgEl.getBoundingClientRect(); if(e.clientY<r.top){ tip.hidden=true; return; }
+  const j=Math.max(0,Math.min(MONTHS.length-1,Math.round((e.clientX-r.left)/r.width*(MONTHS.length-1))));
+  const T=tiles.find(x=>x.c===b.dataset.c);
+  showTip(`<b>${esc(T.c)}</b> · ${esc(MONTHS[j])}<br>`+SMO.slice().reverse().map(i=>T.tot[j][i]?`<i style="background:${G[i][2]}"></i>${esc(G[i][1])}: ${T.tot[j][i]}<br>`:"").join(""), e.clientX, e.clientY); });
+smEl.addEventListener("mouseleave", ()=>tip.hidden=true);
+
+// ---- option 3: seats gained and lost per country between two months ----
+const baseEl = document.getElementById("base");
+baseEl.innerHTML = MONTHS.map((mo,j)=>`<option value="${j}"${j===0?" selected":""}>${esc(mo)}</option>`).join("");
+let b0 = 0;
+baseEl.addEventListener("change", ()=>{ b0 = +baseEl.value; change(); });
+function change(){
+  document.getElementById("cmpto").textContent = MONTHS[m];
+  const rows = tiles.map(T=>{
+    const d = G.map((g,i)=>T.tot[m][i]-T.tot[b0][i]);
+    return {c:T.c, d, churn: d.reduce((a,x)=>a+Math.abs(x),0)};
+  }).sort((a,b)=>b.churn-a.churn || a.c.localeCompare(b.c));
+  const blocks = (d, sign) => G.map((g,i)=> (sign>0 ? d[i]>0 : d[i]<0) ? Array(Math.abs(d[i])).fill(`<i style="background:${g[2]}" title="${esc(g[1])} ${d[i]>0?"+":""}${d[i]}"></i>`).join("") : "").join("");
+  const txt = d => G.map((g,i)=>d[i]?`${g[0]} ${d[i]>0?"+":""}${d[i]}`:"").filter(Boolean).join(", ");
+  document.getElementById("chg").innerHTML = `<div class="chgaxis"><span></span><span>Lost</span><span>Gained</span><span></span></div>` +
+    (b0===m ? `<p class="sub">Pick an earlier month to compare with ${esc(MONTHS[m])}.</p>` :
+    rows.map(r=>`<div class="crow${r.churn?"":" flat"}" data-c="${esc(r.c)}" title="${esc(r.c)}: ${esc(txt(r.d)||"no change")}"><span class="cn">${esc(r.c)}</span>
+      <span class="neg">${blocks(r.d,-1)}</span><span class="pos">${blocks(r.d,1)}</span><span class="sum">${r.churn?esc(txt(r.d)):"No change"}</span></div>`).join(""));
+}
+document.getElementById("chg").addEventListener("click", e=>{ const r=e.target.closest(".crow"); if(r) select(r.dataset.c, true); });
+
+
+// ---- latest: EU-wide seats and change since the 2024 election (EU-level totals) ----
+const EUT = __EUTOT__;
+const LBL = [["EPP","Centre-right EPP"],["S&D","Centre-left S&D"],["PfE","Right-wing PfE"],["ECR","National-conservative ECR"],["RE","Liberal RE"],
+  ["LEFT","Left"],["G/EFA","Greens/EFA"],["ESN","Far-right ESN"],["NI","Non-Inscrits"],["unaffiliated","unaffiliated"]];
+const BASE = EUT[MONTHS[0]] || {};
+function latest(){
+  const cur = EUT[MONTHS[m]];
+  document.getElementById("lmonth").textContent = MONTHS[m];
+  const bs = document.getElementById("bseats"), bc = document.getElementById("bchg");
+  if(!cur){ bs.innerHTML = bc.innerHTML = `<p class="sub">No EU-wide totals for ${esc(MONTHS[m])}.</p>`; return; }
+  const max = Math.max(...LBL.map(([k])=>cur[k]||0));
+  const dmax = Math.max(1, ...LBL.map(([k])=>Math.abs((cur[k]||0)-(BASE[k]||0))));
+  bs.innerHTML = LBL.map(([k,l])=>{ const v=cur[k]||0;
+    return `<div class="bar" title="${esc(l)}: ${v} seats"><span class="lab">${esc(l)}</span><span class="trk"><span class="fill" style="width:${(v/max*100).toFixed(1)}%;background:${col(k)}"></span></span><span class="val">${v}</span></div>`; }).join("");
+  bc.innerHTML = LBL.map(([k,l])=>{ const d=(cur[k]||0)-(BASE[k]||0), w=Math.abs(d)/dmax*50;
+    return `<div class="bar" title="${esc(l)}: ${BASE[k]||0} → ${cur[k]||0} (${d>0?"+":""}${d})"><span class="lab">${esc(l)}</span><span class="trk"><span class="fill" style="left:${d<0?(50-w).toFixed(1):50}%;width:${w.toFixed(1)}%;background:${d<0?"#990000":"#009900"}"></span><span class="mid"></span></span><span class="val">${d>0?"+":""}${d}</span></div>`; }).join("");
+}
+
+
+// ---- latest breakdown: one bar per group, one segment per national party (country-level figures) ----
+let bfilter = "All";
+const cf = document.getElementById("cfilter");
+cf.innerHTML = ["All", ...countries].map(c=>`<button type="button" data-c="${esc(c)}" aria-pressed="${c==="All"}">${esc(c)}</button>`).join("");
+cf.addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; bfilter=b.dataset.c;
+  cf.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b)); breakdown(); });
+const brkEl = document.getElementById("brk");
+brkEl.addEventListener("mousemove", e=>{ const s=e.target.closest(".seg"); if(!s){ tip.hidden=true; return; }
+  const v=+s.dataset.v;
+  showTip(`<b>${esc(s.dataset.n)}</b><br>${esc(s.dataset.c)}<br><i style="background:${col(s.dataset.g)}"></i>${esc(gname(s.dataset.g))}: ${v} ${v===1?"seat":"seats"} · ${esc(MONTHS[m])}`, e.clientX, e.clientY); });
+brkEl.addEventListener("mouseleave", ()=>tip.hidden=true);
+function breakdown(){
+  document.getElementById("bmonth").textContent = MONTHS[m];
+  const by = new Map();
+  P.forEach(p=>{ const x=p.s[m]; if(!x || (bfilter!=="All" && p.c!==bfilter)) return;
+    if(!by.has(x[0])) by.set(x[0], []); by.get(x[0]).push({n:p.n, c:p.c, v:x[1]}); });
+  const groups = [...by.entries()].map(([g,list])=>({g, list:list.sort((a,b)=>b.v-a.v || a.n.localeCompare(b.n)), tot:list.reduce((a,x)=>a+x.v,0)}))
+    .sort((a,b)=>b.tot-a.tot || GI[a.g]-GI[b.g]);
+  const el = document.getElementById("brk");
+  if(!groups.length){ el.innerHTML = `<p class="empty">No projected seats for ${esc(bfilter)} in ${esc(MONTHS[m])}.</p>`; return; }
+  const max = groups[0].tot;
+  el.innerHTML = groups.map(G2=>{
+    const c = col(G2.g), fg = ink(c);
+    return `<div class="grp"><span class="gn">${esc(G2.g)}</span><div class="line"><div class="segs" style="width:calc((100% - 40px) * ${(G2.tot/max).toFixed(4)})">` +
+      G2.list.map(x=>`<span class="seg" style="flex:${x.v};background:${c};color:${fg}" data-n="${esc(x.n)}" data-c="${esc(x.c)}" data-v="${x.v}" data-g="${esc(G2.g)}">${x.v/max*el.clientWidth >= 38 ? `<span>${esc(x.n)}</span>` : ""}</span>`).join("") +
+      `</div><span class="tot">${G2.tot}</span></div></div>`;
+  }).join("");
+}
+
+
+// ---- a small month control in every section, kept in sync with the main one ----
+const MINI = `<span class="mini" role="group" aria-label="Month controls"><button type="button" class="mprev" aria-label="Previous month">◀</button><button type="button" class="mplay">Play</button><button type="button" class="mnext" aria-label="Next month">▶</button><span class="mm"></span></span>`;
+document.querySelectorAll(".lhead").forEach(h=>h.insertAdjacentHTML("beforeend", MINI));
+["h-map","h-sm","h-chg"].forEach(id=>{ const h=document.getElementById(id); const wrap=document.createElement("div"); wrap.className="hrow"; h.replaceWith(wrap); wrap.appendChild(h); wrap.insertAdjacentHTML("beforeend", MINI); });
+{ const r=document.querySelector('[aria-labelledby="h-cty"] .row2'); r.querySelector("h2").insertAdjacentHTML("afterend", MINI); }
+document.addEventListener("click", e=>{
+  if(e.target.closest(".mplay")) play.click();
+  else if(e.target.closest(".mprev")){ stop(); if(m>0) setMonth(m-1); }
+  else if(e.target.closest(".mnext")){ stop(); if(m<MONTHS.length-1) setMonth(m+1); }
+});
+function miniSync(){ document.querySelectorAll(".mini .mm").forEach(x=>x.textContent=MONTHS[m]); document.querySelectorAll(".mplay").forEach(b=>b.textContent = timer ? "Pause" : "Play"); }
+
+function legend(){
+  const t = G.map(()=>0); P.forEach(p=>{ const x=p.s[m]; if(x) t[GI[x[0]]] += x[1]; });
+  document.getElementById("glegend").innerHTML = G.map((g,i)=>t[i] ? `<span><i style="background:${g[2]}"></i>${esc(g[1])}</span>` : "").join("") +
+    `<span style="flex-basis:100%">Country shading shows the group with the most seats there; stripes mark a tie.</span>`;
+}
+function setMonth(j){ m = j; mo.value = j; out.value = MONTHS[j]; mapPaint(); table(); legend(); smallMultiples(); change(); latest(); breakdown(); miniSync(); }
+mo.addEventListener("input", ()=>setMonth(+mo.value));
+function stop(){ clearInterval(timer); timer=null; play.textContent="Play"; miniSync(); }
+play.addEventListener("click", ()=>{ if(timer){ stop(); return; } if(m>=MONTHS.length-1) setMonth(0); play.textContent="Pause";
+  setTimeout(miniSync);
+  timer = setInterval(()=>{ if(m>=MONTHS.length-1){ stop(); return; } setMonth(m+1); }, 450); });
+
+const tip = document.getElementById("tip");
+function showTip(html,x,y){ tip.innerHTML=html; tip.hidden=false; const w=tip.offsetWidth,h=tip.offsetHeight; let Lx=x+14,Ty=y+14;
+  if(Lx+w>innerWidth-8) Lx=x-w-14; if(Ty+h>innerHeight-8) Ty=y-h-14; tip.style.left=Math.max(8,Lx)+"px"; tip.style.top=Math.max(8,Ty)+"px"; }
+setMonth(m);
+})();
+</script>
