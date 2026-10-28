@@ -1,0 +1,315 @@
+
+  <!-- ===== Projection history (replaces the Datawrapper charts on the WordPress page) ===== -->
+  <style>
+/* ===== Projection history (formerly Datawrapper): seats over time, lead, majority options, accuracy ===== */
+#eh{display:flex;flex-direction:column;gap:22px}
+#eh .eh-head{background:#1b2a4a;color:#fff;padding:12px 16px;border-radius:2px;border-bottom:3px solid var(--yellow)}
+#eh .eh-head h2{color:#fff}
+#eh .eh-ctl{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+#eh .eh-seg{display:inline-flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+#eh .eh-seg button{border:0;border-left:1px solid var(--rule);border-radius:0;background:var(--surface);color:var(--navy);padding:6px 12px}
+#eh .eh-seg button:first-child{border-left:0}
+#eh .eh-seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+#eh .eh-lbl{font:700 13px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#eh .eh-chips{display:flex;flex-wrap:wrap;gap:6px}
+#eh .eh-chip{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 11px;border:1px solid var(--rule);border-radius:999px;background:var(--surface);color:var(--fg);font:600 14px var(--body);letter-spacing:0;text-transform:none}
+#eh .eh-chip i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+#eh .eh-chip[aria-pressed="false"]{opacity:.45}
+#eh .eh-chip[aria-pressed="false"] i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--c)}
+#eh select{font-size:15px}
+#eh .eh-chart{position:relative}
+#eh .eh-chart svg{display:block;width:100%;height:auto;overflow:visible}
+#eh .eh-chart svg text{font-family:var(--body)}
+#eh .eh-tip{position:absolute;z-index:6;pointer-events:none;background:var(--navy);color:#fff;border-top:3px solid var(--yellow);border-radius:2px;padding:8px 11px;font-size:14px;line-height:1.45;min-width:180px}
+#eh .eh-tip b{display:block;margin-bottom:3px;padding-bottom:3px;border-bottom:1px solid rgba(255,255,255,.2)}
+#eh .eh-tip div{display:flex;align-items:center;gap:7px}
+#eh .eh-tip div span:last-child{margin-left:auto;font-weight:700;padding-left:12px}
+#eh .eh-tip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+#eh .eh-note{margin:0;font-size:13px;color:var(--muted)}
+#eh .eh-status{padding:30px;text-align:center;color:var(--muted)}
+#eh .eh-status.err{color:#b3261e}
+#eh .eh-coal{display:grid;gap:6px}
+#eh .eh-crow{display:grid;grid-template-columns:minmax(0,260px) 1fr 60px 92px;gap:10px;align-items:center;font-size:15px}
+#eh .eh-nm{display:flex;flex-wrap:wrap;gap:3px;align-items:center;font-weight:600}
+#eh .eh-nm i{width:9px;height:9px;border-radius:2px;display:inline-block}
+#eh .eh-ctrack{position:relative;height:14px;background:var(--grid);border-radius:2px}
+#eh .eh-cfill{display:block;height:100%;border-radius:2px}
+#eh .eh-cmaj{position:absolute;top:-3px;bottom:-3px;width:2px;background:#C8202F}
+#eh .eh-v{text-align:right;font-weight:700}
+#eh .eh-ok{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+#eh .eh-ok.yes{color:#1e7a3c}#eh .eh-ok.no{color:#b3261e}
+#eh .eh-custom{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding-top:10px;border-top:1px solid var(--rule)}
+#eh .eh-custom label{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:600;cursor:pointer}
+#eh table.eh-acc{width:100%;border-collapse:collapse;border-spacing:0}
+#eh .eh-acc th,#eh .eh-acc td{width:auto;height:auto;padding:7px 10px;border-bottom:1px solid var(--grid);text-align:left;font:600 15px var(--body);border-radius:0}
+#eh .eh-acc th{font:700 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#eh .eh-acc td.eh-n{text-align:right;font-weight:700}
+#eh .eh-gname{display:flex;align-items:center;gap:8px}
+#eh .eh-gname i{width:12px;height:12px;border-radius:2px}
+@media (max-width:640px){#eh .eh-crow{grid-template-columns:1fr 50px 70px}#eh .eh-ctrack{grid-column:1/-1;grid-row:2}}
+</style>
+  <div id="eh">
+
+
+  <section class="latest eh-sec">
+    <div class="eh-head"><h2>Seats over time</h2></div>
+    <div class="card">
+      <div class="eh-ctl">
+        <span class="eh-seg" id="s-period"><button data-v="term" aria-pressed="true">2024–2029 term</button><button data-v="all" aria-pressed="false">All time</button></span>
+        <span class="eh-seg" id="s-measure"><button data-v="seats" aria-pressed="true">Seats</button><button data-v="share" aria-pressed="false">Share of seats</button></span>
+      </div>
+      <div class="eh-chips" id="s-chips"></div>
+      <div class="eh-chart" id="c-seats"><div class="eh-status">Loading the projection history…</div></div>
+      <p class="eh-note">Monthly Europe Elects projections of seats per European Parliament group. Dashed red lines: European Parliament elections.</p>
+    </div>
+  </section>
+
+  <section class="latest eh-sec">
+    <div class="eh-head"><h2>Lead of one group over another</h2></div>
+    <div class="card">
+      <div class="eh-ctl">
+        <select id="l-a" aria-label="Group"></select><span class="eh-lbl">over</span><select id="l-b" aria-label="Compared with"></select>
+        <span class="eh-seg" id="l-pre"><button data-a="EPP" data-b="S&amp;D">EPP over S&amp;D</button><button data-a="S&amp;D" data-b="PfE">S&amp;D over PfE</button><button data-a="PfE" data-b="ECR">PfE over ECR</button></span>
+        <span class="eh-seg" id="l-period"><button data-v="term" aria-pressed="false">2024–2029</button><button data-v="all" aria-pressed="true">All time</button></span>
+      </div>
+      <div class="eh-chart" id="c-lead"></div>
+      <p class="eh-note" id="l-note"></p>
+    </div>
+  </section>
+
+  <section class="latest eh-sec">
+    <div class="eh-head"><h2>Majority options</h2></div>
+    <div class="card">
+      <p class="sub">Projected seats of possible majorities. The red line is the current majority threshold.</p>
+      <div class="eh-ctl"><span class="eh-seg" id="m-period"><button data-v="term" aria-pressed="true">2024–2029 term</button><button data-v="all" aria-pressed="false">All time</button></span></div>
+      <div class="eh-chips" id="m-chips"></div>
+      <div class="eh-chart" id="c-maj"></div>
+      <div class="eh-coal" id="m-list"></div>
+      <div class="eh-custom" id="m-custom"><span class="eh-lbl">Build your own:</span></div>
+    </div>
+  </section>
+
+  <section class="latest eh-sec">
+    <div class="eh-head"><h2>Projection accuracy</h2></div>
+    <div class="card">
+      <p class="sub">Difference between our last projection and the preliminary final result of the 2024 European Parliament election.</p>
+      <table class="eh-acc" id="eh-acc"></table>
+    </div>
+  </section>
+
+  </div>
+  <script>
+(function () {
+
+/* ======================= Settings ======================= */
+const SHEET = "18hDb6kMXxPvRDVbTL4u_K0CyhDZApt1Jd9SI8IDMcoc";
+const GID = { seats: "0", coalitions: "1928834079", share: "436173681" };
+const TERM_START = new Date(2024, 6, 1);            // July 2024
+const ELECTIONS = [["2014-05-25", "EP election 2014"], ["2019-05-26", "EP election 2019"], ["2024-06-09", "EP election 2024"]];
+const GROUPS = [ // key, label, colour, header pattern in the sheets
+  ["ESN", "Far-right ESN", "#70463A", /far-?right|\besn\b/i],
+  ["PfE", "Right-wing PfE", "#000000", /right-?wing|\bpfe\b|\bid\b|\benf\b/i],
+  ["ECR", "National-conservative ECR", "#0000FF", /national-?conserv|\becr\b/i],
+  ["EFDD", "Populist EFDD", "#B5179E", /populist|efdd/i],
+  ["EPP", "Centre-right EPP", "#3399FF", /centre-?right|\bepp\b/i],
+  ["RE", "Liberal Renew Europe", "#FFD700", /liberal|renew|alde/i],
+  ["NI", "Non-Inscrits", "#888780", /non[- ]?inscrits|^ni$/i],
+  ["unaffiliated", "Unaffiliated", "#c4c4c4", /unaffiliated/i],
+  ["S&D", "Centre-left S&D", "#FF0000", /centre-?left|s&d/i],
+  ["G/EFA", "Greens/EFA", "#009900", /greens|efa/i],
+  ["LEFT", "Left", "#990000", /\bleft group|gue|^left/i],
+];
+// Projection accuracy, 2024 (last projection vs preliminary final result). Fill in the group keys in row order.
+const ACCURACY = [
+  ["?", 182, 6], ["?", 136, 0], ["?", 81, -1], ["?", 79, 3], ["?", 80, -4], ["?", 69, -5], ["?", 55, -1], ["?", 38, 2],
+];
+
+/* ======================= Data ======================= */
+const G = Object.fromEntries(GROUPS.map(([k, l, c]) => [k, { k, l, c }]));
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function parseCSV(text) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) { const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; } else f += c; }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter((r) => r.some((x) => x.trim()));
+}
+const MON = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+function dateParser(values) {
+  // Day-first or month-first for d/m/y dates, decided from the data.
+  // Evidence: a part above 12 must be the day; otherwise the part that varies more is the month (monthly data on the 1st).
+  let dayFirst = null; const a = new Set(), b = new Set();
+  values.forEach((v) => { const m = String(v).match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})/); if (!m) return; a.add(+m[1]); b.add(+m[2]); if (+m[1] > 12) dayFirst = true; else if (+m[2] > 12 && dayFirst === null) dayFirst = false; });
+  if (dayFirst === null && (a.size || b.size)) dayFirst = b.size > a.size;
+  return (v) => {
+    const s = String(v || "").trim(); let m;
+    if ((m = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/))) return new Date(+m[1], +m[2] - 1, +(m[3] || 1));
+    if ((m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})/))) { const y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; return dayFirst === false ? new Date(y, +m[1] - 1, +m[2]) : new Date(y, +m[2] - 1, +m[1]); }
+    if ((m = s.match(/^([A-Za-z]{3,})\.?[\s-]+(\d{2,4})$/))) { const i = MON.indexOf(m[1].slice(0, 3).toLowerCase()); if (i >= 0) return new Date(+m[2] < 100 ? 2000 + +m[2] : +m[2], i, 1); }
+    if ((m = s.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})\.?[\s-]+(\d{2,4})$/))) { const i = MON.indexOf(m[2].slice(0, 3).toLowerCase()); if (i >= 0) return new Date(+m[3] < 100 ? 2000 + +m[3] : +m[3], i, +m[1]); }
+    const d = new Date(s); return isNaN(d) ? null : d;
+  };
+}
+const num = (v) => { const s = String(v == null ? "" : v).replace(/%/g, "").replace(/\s/g, "").trim(); if (!s) return null; const n = parseFloat(s.includes(",") && !s.includes(".") ? s.replace(",", ".") : s.replace(/,/g, "")); return isFinite(n) ? n : null; };
+async function sheet(gid) {
+  const r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET}/gviz/tq?tqx=out:csv&headers=1&gid=${gid}`);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const rows = parseCSV(await r.text()); const head = rows.shift().map((h) => h.trim());
+  // Date column: the first column whose values parse as dates.
+  const di = head.findIndex((h, i) => { const p = dateParser(rows.map((r) => r[i])); return rows.slice(0, 5).filter((r) => p(r[i])).length >= Math.min(3, rows.length); });
+  const parse = dateParser(rows.map((r) => r[di < 0 ? 0 : di]));
+  const data = rows.map((r) => ({ t: parse(r[di < 0 ? 0 : di]), v: r })).filter((x) => x.t).sort((a, b) => a.t - b.t);
+  return { head, rows: data, di };
+}
+function groupCols(head) {
+  const out = {};
+  head.forEach((h, i) => { const g = GROUPS.find(([k, l, c, re]) => re.test(h)); if (g && !(g[0] in out)) out[g[0]] = i; });
+  return out;
+}
+
+/* ======================= Chart ======================= */
+// Line chart with hover tooltip, end labels and optional reference lines. series: [{key,label,color,values:[n|null]}], dates: [Date]
+function lineChart(host, { dates, series, yFmt = (v) => v, yMin, hline, area, height = 400, rightPad = 150 }) {
+  host.innerHTML = "";
+  const W = Math.max(320, host.clientWidth || 900), small = W < 560;
+  // Right margin fits the longest end label.
+  const cx = (lineChart.cv = lineChart.cv || document.createElement("canvas")).getContext("2d"); cx.font = "700 13px 'Advent Pro', system-ui, sans-serif";
+  const lw = area ? 0 : Math.max(0, ...series.map((s) => cx.measureText((small && s.short !== undefined ? s.short : s.label) + " 000.0%").width));
+  const H = small ? 300 : height, m = { l: 40, r: area ? 16 : Math.min(small ? 110 : 280, Math.max(40, Math.ceil(lw) + 18)), t: 12, b: 26 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const t0 = dates[0].getTime(), t1 = dates[dates.length - 1].getTime();
+  const vals = series.flatMap((s) => s.values.filter((v) => v != null)).concat(hline ? hline.values.filter((v) => v != null) : []).concat(area ? area.values.filter((v) => v != null) : []);
+  if (!vals.length) { host.innerHTML = '<div class="eh-status">No data for this selection.</div>'; return; }
+  let lo = yMin != null ? yMin : Math.min(0, ...vals), hi = Math.max(...vals);
+  const step = niceStep((hi - lo) / 5); lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const x = (t) => m.l + (t - t0) / Math.max(1, t1 - t0) * iw, y = (v) => m.t + ih - (v - lo) / (hi - lo || 1) * ih;
+  let svg = "";
+  for (let v = lo; v <= hi + 1e-9; v += step) svg += `<line x1="${m.l}" x2="${m.l + iw}" y1="${y(v)}" y2="${y(v)}" stroke="${Math.abs(v) < 1e-9 && lo < 0 ? "#8a8a86" : "#ecebe6"}"/><text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end" font-size="12" fill="#8a8a86">${yFmt(Math.round(v * 100) / 100)}</text>`;
+  // x ticks: years
+  const y0 = dates[0].getFullYear(), y1 = dates[dates.length - 1].getFullYear(), every = Math.max(1, Math.ceil((y1 - y0 + 1) / (small ? 4 : 9)));
+  for (let yr = y0; yr <= y1 + 1; yr++) { const t = new Date(yr, 0, 1).getTime(); if (t < t0 || t > t1 || (yr - y0) % every) continue;
+    svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${m.t + ih}" y2="${m.t + ih + 4}" stroke="#8a8a86"/><text x="${x(t)}" y="${H - 6}" text-anchor="middle" font-size="12" fill="#8a8a86">${yr}</text>`; }
+  ELECTIONS.forEach(([d, l]) => { const t = new Date(d).getTime(); if (t < t0 || t > t1) return; svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${m.t}" y2="${m.t + ih}" stroke="#C8202F" stroke-width="1.2" stroke-dasharray="4 3"><title>${l}</title></line>`; });
+  if (area) { // signed area (lead chart): above zero in colour A, below in colour B
+    const pts = dates.map((d, i) => [x(d.getTime()), area.values[i]]).filter((p) => p[1] != null);
+    const path = (sign) => { let s = "", open = false; pts.forEach(([px, v]) => { const vv = sign > 0 ? Math.max(0, v) : Math.min(0, v); s += (open ? "L" : "M") + px.toFixed(1) + "," + y(vv).toFixed(1); open = true; }); return s + `L${pts[pts.length - 1][0].toFixed(1)},${y(0)}L${pts[0][0].toFixed(1)},${y(0)}Z`; };
+    svg += `<path d="${path(1)}" fill="${area.colorA}" opacity=".85"/><path d="${path(-1)}" fill="${area.colorB}" opacity=".85"/>`;
+  }
+  if (hline) svg += `<path d="${linePath(dates, hline.values, x, y)}" fill="none" stroke="#C8202F" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  series.forEach((s) => { svg += `<path d="${linePath(dates, s.values, x, y)}" fill="none" stroke="${s.color}" stroke-width="${s.width || 2.2}" stroke-linejoin="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""}/>`; });
+  // end labels (nudged apart)
+  if (!area) {
+    const labs = series.map((s) => { let i = s.values.length - 1; while (i >= 0 && s.values[i] == null) i--; return i < 0 ? null : { s, v: s.values[i], x: x(dates[i].getTime()), y: y(s.values[i]) }; }).filter(Boolean).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 14) labs[i].y = labs[i - 1].y + 14;
+    labs.forEach((l) => { const col = l.s.color === "#FFD700" ? "#9a8000" : l.s.color;
+      svg += `<circle cx="${l.x}" cy="${y(l.v)}" r="3" fill="${l.s.color}"/><text x="${l.x + 7}" y="${l.y + 4}" font-size="13" font-weight="700" fill="${col}">${esc(small && l.s.short !== undefined ? l.s.short : l.s.label)} <tspan font-weight="500">${yFmt(Math.round(l.v * 10) / 10)}</tspan></text>`; });
+  }
+  svg += `<line class="eh-hx" y1="${m.t}" y2="${m.t + ih}" stroke="#001936" stroke-dasharray="3 3" visibility="hidden"/><rect class="eh-hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent"/>`;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">${svg}</svg><div class="eh-tip" hidden></div>`;
+  const sv = host.querySelector("svg"), tip = host.querySelector(".eh-tip"), hx = sv.querySelector(".eh-hx");
+  const move = (ev) => {
+    const r = sv.getBoundingClientRect(), px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) * W / r.width;
+    const t = t0 + (px - m.l) / iw * (t1 - t0); let i = 0, best = Infinity; dates.forEach((d, j) => { const dd = Math.abs(d - t); if (dd < best) { best = dd; i = j; } });
+    hx.setAttribute("x1", x(dates[i].getTime())); hx.setAttribute("x2", x(dates[i].getTime())); hx.setAttribute("visibility", "visible");
+    const rows = (area ? [{ label: area.label, color: area.values[i] >= 0 ? area.colorA : area.colorB, v: area.values[i] }] : series.map((s) => ({ label: s.label, color: s.color, v: s.values[i] })))
+      .filter((o) => o.v != null).sort((a, b) => b.v - a.v);
+    tip.innerHTML = `<b>${dates[i].toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</b>` + rows.map((o) => `<div><i style="background:${o.color}"></i><span>${esc(o.label)}</span><span>${yFmt(Math.round(o.v * 10) / 10)}</span></div>`).join("")
+      + (hline && hline.values[i] != null ? `<div><i style="background:#C8202F"></i><span>Majority</span><span>${hline.values[i]}</span></div>` : "");
+    tip.hidden = false; const hr = host.getBoundingClientRect(); let lx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - hr.left + 14; if (lx + 220 > hr.width) lx -= 240; tip.style.left = Math.max(0, lx) + "px"; tip.style.top = "8px";
+  };
+  const hit = sv.querySelector(".eh-hit");
+  hit.addEventListener("mousemove", move); hit.addEventListener("touchstart", move, { passive: true }); hit.addEventListener("touchmove", move, { passive: true });
+  hit.addEventListener("mouseleave", () => { tip.hidden = true; hx.setAttribute("visibility", "hidden"); });
+}
+function linePath(dates, values, x, y) { let s = "", pen = false; values.forEach((v, i) => { if (v == null) { pen = false; return; } s += (pen ? "L" : "M") + x(dates[i].getTime()).toFixed(1) + "," + y(v).toFixed(1); pen = true; }); return s; }
+function niceStep(raw) { const p = Math.pow(10, Math.floor(Math.log10(raw || 1))), n = raw / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+function seg(id, cb) { const el = document.getElementById(id); el.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; el.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); cb(b); }); }
+
+/* ======================= Sections ======================= */
+const S = { period: "term", measure: "seats", off: new Set(), lead: { a: "EPP", b: "S&D", period: "all" }, maj: { period: "term", off: new Set(), custom: new Set() } };
+let SEATS, SHARE, COAL;
+const inPeriod = (p) => (d) => p === "all" || d.t >= TERM_START;
+
+function drawSeats() {
+  const src = S.measure === "share" && SHARE ? SHARE : SEATS, rows = src.rows.filter(inPeriod(S.period)), cols = groupCols(src.head);
+  const keys = GROUPS.map((g) => g[0]).filter((k) => k in cols && rows.some((r) => num(r.v[cols[k]])));
+  document.getElementById("s-chips").innerHTML = keys.map((k) => `<button class="eh-chip" data-k="${esc(k)}" aria-pressed="${!S.off.has(k)}" style="--c:${G[k].c}"><i></i>${esc(G[k].l)}</button>`).join("");
+  const share = S.measure === "share" && SHARE;
+  lineChart(document.getElementById("c-seats"), { dates: rows.map((r) => r.t),
+    series: keys.filter((k) => !S.off.has(k)).map((k) => ({ key: k, label: k === "unaffiliated" ? "Unaffil." : k, short: k, color: G[k].c, values: rows.map((r) => num(r.v[cols[k]])) })),
+    yFmt: share ? (v) => v + "%" : (v) => v, rightPad: 110 });
+}
+function drawLead() {
+  const rows = SEATS.rows.filter(inPeriod(S.lead.period)), cols = groupCols(SEATS.head), { a, b } = S.lead;
+  const vals = rows.map((r) => { const x = num(r.v[cols[a]]), y = num(r.v[cols[b]]); return x == null || y == null ? null : x - y; });
+  lineChart(document.getElementById("c-lead"), { dates: rows.map((r) => r.t), series: [], area: { values: vals, colorA: G[a].c, colorB: G[b].c, label: `${a} − ${b}` }, yFmt: (v) => (v > 0 ? "+" : "") + v, height: 300 });
+  const last = vals.filter((v) => v != null).slice(-1)[0];
+  document.getElementById("l-note").textContent = last == null ? "" : `Latest projection: ${a} ${last >= 0 ? "leads" : "trails"} ${b} by ${Math.abs(last)} seats. Above the line: ${a} ahead; below: ${b} ahead.`;
+}
+const COAL_COLORS = ["#2A9D8F", "#E9C46A", "#F4A261", "#264653", "#3399FF", "#70463A", "#C8202F", "#6A4C93", "#000000", "#0F7591", "#B5179E"];
+function coalitionMembers(name) { return name.split(/[-–+]/).map((p) => { const t = p.trim(); const g = GROUPS.find(([k, l, c, re]) => re.test(t) || k.toLowerCase() === t.toLowerCase() || (t === "RE" && k === "RE")); return g ? g[0] : null; }).filter(Boolean); }
+function drawMaj() {
+  const rows = SEATS.rows.filter(inPeriod(S.maj.period)), cols = groupCols(SEATS.head);
+  const tot = rows.map((r) => GROUPS.reduce((s, [k]) => s + (k in cols ? num(r.v[cols[k]]) || 0 : 0), 0));
+  const maj = tot.map((t) => (t ? Math.floor(t / 2) + 1 : null));
+  // Coalitions from the sheet, aligned by date with the seat rows; plus the custom one.
+  const cRows = COAL ? COAL.rows : [], cHead = COAL ? COAL.head : [];
+  const coal = cHead.map((h, i) => ({ name: h.trim(), i })).filter((c) => c.i !== COAL.di && c.name);
+  const byT = new Map(cRows.map((r) => [r.t.getFullYear() * 12 + r.t.getMonth(), r]));
+  const series = coal.map((c, ci) => ({ key: c.name, label: c.name.replace(/-/g, "–"), short: "", color: COAL_COLORS[ci % COAL_COLORS.length],
+    values: rows.map((r) => { const cr = byT.get(r.t.getFullYear() * 12 + r.t.getMonth()); return cr ? num(cr.v[c.i]) : null; }) }));
+  if (S.maj.custom.size) series.push({ key: "custom", label: "Your coalition: " + [...S.maj.custom].join("–"), short: "", color: "#001936", width: 3, dash: "7 4",
+    values: rows.map((r) => [...S.maj.custom].reduce((s, k) => s + (num(r.v[cols[k]]) || 0), 0)) });
+  document.getElementById("m-chips").innerHTML = series.map((s) => `<button class="eh-chip" data-k="${esc(s.key)}" aria-pressed="${!S.maj.off.has(s.key)}" style="--c:${s.color}"><i></i>${esc(s.label)}</button>`).join("");
+  lineChart(document.getElementById("c-maj"), { dates: rows.map((r) => r.t), series: series.filter((s) => !S.maj.off.has(s.key)), hline: { values: maj }, rightPad: 70 });
+  // Latest standing
+  const li = rows.length - 1, m = maj[li], top = Math.max(...series.map((s) => s.values[li] || 0), m || 0);
+  document.getElementById("m-list").innerHTML = `<p class="eh-lbl" style="margin:6px 0 0">Latest projection · ${rows[li].t.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} · majority ${m} of ${tot[li]}</p>` +
+    [...series].sort((a, b) => (b.values[li] || 0) - (a.values[li] || 0)).map((s) => { const v = s.values[li]; if (v == null) return "";
+      const members = s.key === "custom" ? [...S.maj.custom] : coalitionMembers(s.key);
+      return `<div class="eh-crow"><span class="eh-nm">${members.map((k) => `<i style="background:${G[k] ? G[k].c : "#888"}"></i>`).join("")} ${esc(s.label)}</span>
+        <span class="eh-ctrack"><span class="eh-cfill" style="display:block;width:${v / top * 100}%;background:${s.color}"></span><span class="eh-cmaj" style="left:${m / top * 100}%"></span></span>
+        <span class="eh-v">${v}</span><span class="eh-ok ${v >= m ? "yes" : "no"}">${v >= m ? "Majority" : (m - v) + " short"}</span></div>`; }).join("");
+  const keys = GROUPS.map((g) => g[0]).filter((k) => k in cols && k !== "unaffiliated" && k !== "NI" && rows.some((r) => num(r.v[cols[k]])));
+  document.getElementById("m-custom").innerHTML = `<span class="eh-lbl">Build your own:</span>` + keys.map((k) => `<label><input type="checkbox" value="${esc(k)}" ${S.maj.custom.has(k) ? "checked" : ""}><span style="color:${G[k].c === "#FFD700" ? "#9a8000" : G[k].c}">${esc(k)}</span></label>`).join("");
+}
+function drawAccuracy() {
+  const t = document.getElementById("eh-acc");
+  t.innerHTML = `<tr><th>Group</th><th style="text-align:right">Europe Elects projection</th><th style="text-align:right">Difference</th></tr>` +
+    ACCURACY.map(([k, p, d]) => { const g = G[k]; const bg = d === 0 ? "#fff" : d > 0 ? `rgba(250,140,0,${Math.min(.45, .08 + d * .06)})` : `rgba(42,93,176,${Math.min(.4, .08 - d * .05)})`;
+      return `<tr><td><span class="eh-gname"><i style="background:${g ? g.c : "#ccc"}"></i>${esc(g ? g.l : k)}</span></td><td class="eh-n">${p}</td><td class="eh-n" style="background:${bg}">${d > 0 ? "+" : ""}${d}</td></tr>`; }).join("");
+}
+
+/* ======================= Events ======================= */
+seg("s-period", (b) => { S.period = b.dataset.v; drawSeats(); });
+seg("s-measure", (b) => { S.measure = b.dataset.v; drawSeats(); });
+document.getElementById("s-chips").addEventListener("click", (e) => { const b = e.target.closest(".eh-chip"); if (!b) return; S.off.has(b.dataset.k) ? S.off.delete(b.dataset.k) : S.off.add(b.dataset.k); drawSeats(); });
+seg("l-period", (b) => { S.lead.period = b.dataset.v; drawLead(); });
+seg("l-pre", (b) => { S.lead.a = b.dataset.a; S.lead.b = b.dataset.b; document.getElementById("l-a").value = S.lead.a; document.getElementById("l-b").value = S.lead.b; drawLead(); });
+["l-a", "l-b"].forEach((id) => document.getElementById(id).addEventListener("change", (e) => { S.lead[id === "l-a" ? "a" : "b"] = e.target.value; document.querySelectorAll("#l-pre button").forEach((x) => x.setAttribute("aria-pressed", "false")); drawLead(); }));
+seg("m-period", (b) => { S.maj.period = b.dataset.v; drawMaj(); });
+document.getElementById("m-chips").addEventListener("click", (e) => { const b = e.target.closest(".eh-chip"); if (!b) return; S.maj.off.has(b.dataset.k) ? S.maj.off.delete(b.dataset.k) : S.maj.off.add(b.dataset.k); drawMaj(); });
+document.getElementById("m-custom").addEventListener("change", (e) => { if (!e.target.value) return; e.target.checked ? S.maj.custom.add(e.target.value) : S.maj.custom.delete(e.target.value); drawMaj(); });
+let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(drawAll, 150); });
+
+function drawAll() { if (!SEATS) return; drawSeats(); drawLead(); drawMaj(); drawAccuracy(); postHeight(); }
+function postHeight() {}
+
+(async () => {
+  try {
+    [SEATS, COAL, SHARE] = await Promise.all([sheet(GID.seats), sheet(GID.coalitions).catch(() => null), sheet(GID.share).catch(() => null)]);
+    const cols = groupCols(SEATS.head), keys = GROUPS.map((g) => g[0]).filter((k) => k in cols);
+    ["l-a", "l-b"].forEach((id) => { document.getElementById(id).innerHTML = keys.map((k) => `<option value="${esc(k)}">${esc(G[k].l)}</option>`).join(""); });
+    document.getElementById("l-a").value = S.lead.a; document.getElementById("l-b").value = S.lead.b;
+    document.querySelector('#l-pre button').setAttribute("aria-pressed", "true");
+    drawAll();
+  } catch (e) {
+    document.getElementById("c-seats").innerHTML = `<div class="eh-status err">Couldn't load the projection history (${esc(e.message)}). Check that the sheet is shared as "Anyone with the link can view".</div>`;
+  }
+})();
+
+})();
+
+  </script>

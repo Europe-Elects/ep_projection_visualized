@@ -61,6 +61,10 @@ if len(sys.argv) > 5:
         eutot[f"{NAMES[int(mm.group(2))-1]} {mm.group(1)}"] = vals
     eutot = {m: eutot[m] for m in months if m in eutot}
 html = open(sys.argv[4], encoding='utf-8').read()
+# Projection history (seats over time, lead, majority options, accuracy): loads the history sheets in the browser
+import os
+_hist = os.path.join(os.path.dirname(os.path.abspath(sys.argv[4])), 'history_section.html')
+html = html.replace('__HISTORY__', open(_hist, encoding='utf-8').read() if os.path.exists(_hist) else '')
 J = lambda o: json.dumps(o, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 shapes = ''.join(
     f'<path class="{"cty" if s["n"] in countries else "bg"}" {"data-c=" + chr(34) + s["n"] + chr(34) if s["n"] in countries else ""} d="{s["d"]}"><title>{s["n"]}</title></path>'
