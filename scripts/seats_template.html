@@ -109,9 +109,11 @@ tr.tot td{font-weight:800;color:var(--fg);background:none}
 .grp{display:flex;flex-direction:column;gap:3px}
 .grp .gn{font:700 16px var(--display);color:var(--fg)}
 .grp .line{display:flex;align-items:center;gap:8px}
-.grp .segs{display:flex;height:30px;gap:1px;min-width:0}
-.grp .seg{min-width:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;font:600 12px var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;cursor:default}
-.grp .seg span{overflow:hidden;text-overflow:ellipsis}
+.grp .segs{display:flex;height:30px;gap:0;min-width:0}
+/* one segment per party, widths strictly proportional to seats; 2px white separator (1px gaps vanish at some zoom levels) */
+.grp .seg{box-sizing:border-box;flex-basis:0;min-width:3px;border-right:2px solid var(--surface);background-clip:padding-box;display:flex;align-items:center;justify-content:center;font:600 12px var(--body);white-space:nowrap;overflow:hidden;padding:0;cursor:default}
+.grp .seg:last-child{border-right:0}
+.grp .seg span{overflow:hidden;text-overflow:ellipsis;padding:0 3px}
 .grp .tot{font:700 13px var(--body);color:var(--fg);font-variant-numeric:tabular-nums}
 .brk .empty{color:var(--muted);margin:0}
 .mini{display:inline-flex;align-items:center;gap:4px;margin-left:auto;font:700 14px var(--body);letter-spacing:.04em;text-transform:none}
