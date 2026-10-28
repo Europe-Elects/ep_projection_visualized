@@ -7,12 +7,30 @@ R = [l.rstrip('\r').split('\t') for l in L[1:] if l.strip()]
 
 MON = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
 NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-cols = []
+def month_col(text):
+    """Month header -> (year, month), or None. Accepts Sep-26, Sept-26, Sep 26, September 2026, 2026-09, 09/2026."""
+    t = text.strip()
+    m = re.match(r'^([A-Za-z]+)\.?[\s-]+(\d{2}|\d{4})$', t)
+    if m and m.group(1)[:3].lower() in MON:
+        y = int(m.group(2)); return (y if y > 99 else 2000 + y, MON[m.group(1)[:3].lower()])
+    m = re.match(r'^(\d{4})-(\d{1,2})(?:-\d{1,2})?$', t) or None
+    if m and 1 <= int(m.group(2)) <= 12: return (int(m.group(1)), int(m.group(2)))
+    m = re.match(r'^(\d{1,2})[./](\d{4})$', t)
+    if m and 1 <= int(m.group(1)) <= 12: return (int(m.group(2)), int(m.group(1)))
+    return None
+
+cols, skipped, seen = [], [], set()
 for i, m in enumerate(h[5:]):
-    mm = re.match(r'([A-Za-z]+)-(\d\d)', m.strip())
-    mo, yr = MON[mm.group(1)[:3].lower()], 2000 + int(mm.group(2))
-    cols.append((yr, mo, 5 + i))
+    ym = month_col(m)
+    if not ym:
+        if m.strip(): skipped.append(m.strip())
+        continue  # notes, empty or helper columns are ignored
+    if ym in seen:
+        skipped.append(m.strip() + ' (duplicate month)'); continue
+    seen.add(ym)
+    cols.append((ym[0], ym[1], 5 + i))
 cols.sort()
+if skipped: print('Columns ignored (not a month):', ', '.join(skipped))
 months = [f"{NAMES[mo-1]} {yr}" for yr, mo, _ in cols]
 
 # one record per party and group (country + name + group). A party whose seats are split across
