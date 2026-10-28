@@ -119,7 +119,8 @@ const GROUPS = [ // key, label, colour, header pattern in the sheets
   ["G/EFA", "Greens/EFA", "#009900", /greens|efa/i],
   ["LEFT", "Left", "#990000", /\bleft group|gue|^left/i],
 ];
-// Projection accuracy, 2024 (last projection vs preliminary final result). Fill in the group keys in row order.
+// Projection accuracy, 2024 (last projection vs preliminary final result). Replace each "?" with the group key
+// (EPP, S&D, ECR, RE, PfE, ESN, G/EFA, LEFT, NI, EFDD …). The section stays hidden until all rows have a key.
 const ACCURACY = [
   ["?", 182, 6], ["?", 136, 0], ["?", 81, -1], ["?", 79, 3], ["?", 80, -4], ["?", 69, -5], ["?", 55, -1], ["?", 38, 2],
 ];
@@ -160,7 +161,8 @@ async function sheet(gid) {
   // Date column: the first column whose values parse as dates.
   const di = head.findIndex((h, i) => { const p = dateParser(rows.map((r) => r[i])); return rows.slice(0, 5).filter((r) => p(r[i])).length >= Math.min(3, rows.length); });
   const parse = dateParser(rows.map((r) => r[di < 0 ? 0 : di]));
-  const data = rows.map((r) => ({ t: parse(r[di < 0 ? 0 : di]), v: r })).filter((x) => x.t).sort((a, b) => a.t - b.t);
+  // Rows prepared for future months (no figures yet) are left out.
+  const data = rows.map((r) => ({ t: parse(r[di < 0 ? 0 : di]), v: r })).filter((x) => x.t && x.v.some((c, i) => i !== di && num(c) != null)).sort((a, b) => a.t - b.t);
   return { head, rows: data, di };
 }
 function groupCols(head) {
@@ -277,6 +279,9 @@ function drawMaj() {
 }
 function drawAccuracy() {
   const t = document.getElementById("eh-acc");
+  // Hidden until every row names a known group (see ACCURACY in the settings).
+  const sec = t.closest("section"); const ready = ACCURACY.length && ACCURACY.every(([k]) => G[k]);
+  if (sec) sec.hidden = !ready; if (!ready) return;
   t.innerHTML = `<tr><th>Group</th><th style="text-align:right">Europe Elects projection</th><th style="text-align:right">Difference</th></tr>` +
     ACCURACY.map(([k, p, d]) => { const g = G[k]; const bg = d === 0 ? "#fff" : d > 0 ? `rgba(250,140,0,${Math.min(.45, .08 + d * .06)})` : `rgba(42,93,176,${Math.min(.4, .08 - d * .05)})`;
       return `<tr><td><span class="eh-gname"><i style="background:${g ? g.c : "#ccc"}"></i>${esc(g ? g.l : k)}</span></td><td class="eh-n">${p}</td><td class="eh-n" style="background:${bg}">${d > 0 ? "+" : ""}${d}</td></tr>`; }).join("");
