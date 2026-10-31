@@ -64,6 +64,8 @@ tr.tot td{font-weight:800;color:var(--fg);background:none}
 #tip i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:6px}
 .foot{color:var(--muted);font-size:14px;margin:0}
 .sub{margin:0;color:var(--muted);font-size:14px}
+.intro{background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--yellow);border-radius:4px;padding:14px 18px;margin:0 0 16px}
+.intro p{margin:0;font-size:17px;line-height:1.5;color:var(--fg)}
 .sm{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
 .tile{border:1px solid var(--rule);border-radius:2px;padding:8px 8px 4px;cursor:pointer;background:var(--surface);min-width:0;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;gap:2px}
 .tile:hover,.tile:focus-visible{border-color:var(--navy)}
@@ -128,6 +130,11 @@ tr.tot td{font-weight:800;color:var(--fg);background:none}
 
 <div class="wrap">
   <p class="note" id="issues" hidden></p>
+
+  <!-- INTRODUCTION: edit the text between <p> and </p> -->
+  <section class="intro">
+    <p>Our monthly projection estimates how the 720 seats of the European Parliament would be shared out if an election were held today, based on the latest national polls in all 27 member states. Use the slider to go back in time, explore each country's seats on the map, and see which national parties sit behind every group.</p>
+  </section>
 
   <div class="ctl">
     <h2>Month</h2>
