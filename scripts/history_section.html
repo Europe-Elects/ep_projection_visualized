@@ -102,8 +102,8 @@
 (function () {
 
 /* ======================= Settings ======================= */
-const SHEET = "18hDb6kMXxPvRDVbTL4u_K0CyhDZApt1Jd9SI8IDMcoc";
-const GID = { seats: "0", coalitions: "1928834079", share: "436173681" };
+// History data: read from the Sheet by the GitHub Action and published as history/<name>.csv (scripts/fetch_sheets.py).
+const GID = { seats: "seats", coalitions: "coalitions", share: "share" };
 const TERM_START = new Date(2024, 6, 1);            // July 2024
 const ELECTIONS = [["2014-05-25", "EP election 2014"], ["2019-05-26", "EP election 2019"], ["2024-06-09", "EP election 2024"]];
 const GROUPS = [ // key, label, colour, header pattern in the sheets
@@ -155,7 +155,7 @@ function dateParser(values) {
 }
 const num = (v) => { const s = String(v == null ? "" : v).replace(/%/g, "").replace(/\s/g, "").trim(); if (!s) return null; const n = parseFloat(s.includes(",") && !s.includes(".") ? s.replace(",", ".") : s.replace(/,/g, "")); return isFinite(n) ? n : null; };
 async function sheet(gid) {
-  const r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET}/gviz/tq?tqx=out:csv&headers=1&gid=${gid}`);
+  const r = await fetch(`history/${gid}.csv`, { cache: "no-cache" });
   if (!r.ok) throw new Error("HTTP " + r.status);
   const rows = parseCSV(await r.text()); const head = rows.shift().map((h) => h.trim());
   // Date column: the first column whose values parse as dates.
