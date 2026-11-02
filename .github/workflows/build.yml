@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write   # to commit the data snapshots
+  contents: read
   pages: write
   id-token: write
 
@@ -26,39 +26,27 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Download the seat projection sheets
+      - id: google
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/659866385408/locations/global/workloadIdentityPools/github/providers/github-actions
+          service_account: ee-sheets-reader@project-6c08a079-4a01-46eb-aaf.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/spreadsheets.readonly
+          create_credentials_file: false
+
+      - name: Read the seat projection Sheets
         env:
-          SEATS_PARTY_TSV_URL: ${{ secrets.SEATS_PARTY_TSV_URL }}
-          SEATS_EU_TSV_URL: ${{ secrets.SEATS_EU_TSV_URL }}
-        run: |
-          if [ -z "$SEATS_PARTY_TSV_URL" ] || [ -z "$SEATS_EU_TSV_URL" ]; then
-            echo "::error::Add the SEATS_PARTY_TSV_URL and SEATS_EU_TSV_URL repository secrets (Settings → Secrets and variables → Actions)."
-            exit 1
-          fi
-          curl -fsSL --retry 3 "$SEATS_PARTY_TSV_URL" -o /tmp/seats_party.tsv
-          head -c 300 /tmp/seats_party.tsv | grep -q "EU Parliament group" || {
-            echo "::error::SEATS_PARTY_TSV_URL is not the per-party seat sheet (check the link and that the sheet is shared)."; exit 1; }
-          curl -fsSL --retry 3 "$SEATS_EU_TSV_URL" -o /tmp/seats_eu.tsv
-          head -c 300 /tmp/seats_eu.tsv | grep -q "EPP" || {
-            echo "::error::SEATS_EU_TSV_URL is not the EU-wide seat sheet (check the link and that the sheet is shared)."; exit 1; }
-          mkdir -p data
-          mv /tmp/seats_party.tsv data/seats_party.tsv
-          mv /tmp/seats_eu.tsv data/seats_eu.tsv
+          GOOGLE_TOKEN: ${{ steps.google.outputs.access_token }}
+          PROJECTION_SHEET_ID: ${{ secrets.PROJECTION_SHEET_ID }}
+          HEADLINE_SHEET_ID: ${{ secrets.HEADLINE_SHEET_ID }}
+          HISTORY_SHEET_ID: ${{ secrets.HISTORY_SHEET_ID }}
+        run: python3 scripts/fetch_sheets.py
 
       - name: Build the page
         run: |
           mkdir -p site
           python scripts/build_seats.py data/seats_party.tsv scripts/europe_map.json site/index.html scripts/seats_template.html data/seats_eu.tsv
-
-      - name: Save a snapshot of the data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add data/seats_party.tsv data/seats_eu.tsv
-          if ! git diff --cached --quiet; then
-            git commit -m "Data snapshot $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push
-          fi
 
       - uses: actions/upload-pages-artifact@v3
         with:
